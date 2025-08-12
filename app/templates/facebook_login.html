@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Facebook Login Test</title>
+    <script>
+        // Load the SDK asynchronously
+        (function(d, s, id) {
+            var js, fjs = d.getElementsByTagName(s)[0];
+            if (d.getElementById(id)) return;
+            js = d.createElement(s); js.id = id;
+            js.src = "https://connect.facebook.net/en_US/sdk.js";
+            fjs.parentNode.insertBefore(js, fjs);
+        }(document, 'script', 'facebook-jssdk'));
+
+        window.fbAsyncInit = function() {
+            FB.init({
+                appId: '{{ facebook_client_id }}',
+                cookie: true,
+                xfbml: true,
+                version: 'v18.0'
+            });
+            
+            // Check initial status
+            FB.getLoginStatus(function(response) {
+                updateLoginStatus(response);
+            });
+        };
+
+        function updateLoginStatus(response) {
+            if (response.status === 'connected') {
+                document.getElementById('result').innerHTML = 'Connected to Facebook';
+                // Get user info
+                FB.api('/me', {fields: 'name,email'}, function(userInfo) {
+                    document.getElementById('result').innerHTML += '<br>Welcome ' + userInfo.name;
+                });
+            } else {
+                document.getElementById('result').innerHTML = 'Please log in';
+            }
+        }
+
+        function handleLoginClick() {
+            if (!window.FB) {
+                console.error('Facebook SDK not loaded yet');
+                document.getElementById('result').innerHTML = 'Please wait for Facebook SDK to load...';
+                return;
+            }
+
+            FB.login(function(response) {
+                console.log('Login response:', response);
+                if (response.authResponse) {
+                    console.log('Access Token:', response.authResponse.accessToken);
+                    
+                    // First, verify the token and get user info
+                    FB.api('/me', {fields: 'name,email'}, function(userInfo) {
+                        console.log('User info:', userInfo);
+                        if (userInfo.error) {
+                            document.getElementById('result').innerHTML = 'Error getting user info: ' + JSON.stringify(userInfo.error);
+                            return;
+                        }
+                        
+                        // Then send to backend
+                        sendTokenToBackend(response.authResponse.accessToken);
+                    });
+                } else {
+                    document.getElementById('result').innerHTML = 'Login cancelled or not authorized';
+                }
+            }, {
+                scope: 'public_profile',
+                return_scopes: true
+            });
+        }
+
+        function sendTokenToBackend(accessToken) {
+            console.log('Sending token to backend...');
+            document.getElementById('result').innerHTML = 'Authenticating with server...';
+            
+            fetch('/api/auth/facebook/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    access_token: accessToken
+                })
+            })
+            .then(response => {
+                console.log('Server response:', response);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Server data:', data);
+                if (data.access_token) {
+                    document.getElementById('result').innerHTML = 'Login successful!<br>JWT Token: ' + data.access_token;
+                    localStorage.setItem('jwt_token', data.access_token);
+                    
+                    // Show user info
+                    if (data.user) {
+                        document.getElementById('result').innerHTML += '<br><br>User Info:<br>' +
+                            'Name: ' + data.user.first_name + ' ' + data.user.last_name + '<br>' +
+                            'Email: ' + data.user.email;
+                    }
+                } else {
+                    document.getElementById('result').innerHTML = 'Login failed: ' + JSON.stringify(data);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = 'Error: ' + error;
+            });
+        }
+    </script>
+    <style>
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        button {
+            background-color: #1877f2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #166fe5;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Facebook Login Test</h1>
+        <button onclick="handleLoginClick();">Login with Facebook</button>
+        <div id="result">Loading Facebook SDK...</div>
+    </div>
+
+    <div id="fb-root"></div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+Flask==2.3.3
+Flask-SQLAlchemy==3.1.1
+Flask-JWT-Extended==4.5.2
+Flask-Migrate==4.0.5
+Flask-Mail==0.9.1
+mysql-connector-python==8.1.0
+mysqlclient==2.2.4
+python-dotenv==1.0.0
+requests==2.31.0
+bcrypt==4.0.1
+python-facebook-api==0.20.1
+email-validator==2.0.0.post2
