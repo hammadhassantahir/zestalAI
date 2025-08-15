@@ -65,7 +65,7 @@
                     document.getElementById('result').innerHTML = 'Login cancelled or not authorized';
                 }
             }, {
-                scope: 'public_profile',
+                scope: 'email,public_profile',
                 return_scopes: true
             });
         }
