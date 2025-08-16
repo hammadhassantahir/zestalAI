@@ -117,4 +117,19 @@ def check_email():
         logging.error(f"Error in check_email: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
-# ... rest of your routes remain the same ...
+
+@auth_bp.route('/verify', methods=['GET'])
+@jwt_required()
+def verify_token():
+    try:
+        current_user = get_jwt_identity()
+        user = User.query.get(current_user)
+        if not user:
+            return jsonify({"valid": False, "error": "User not found"}), 404
+        
+        if not user.is_verified:
+            return jsonify({"valid": False, "error": "User not verified"}), 403
+        
+        return jsonify({"valid": True, "user_id": current_user, "user": user.to_dict()}), 200
+    except:
+        return jsonify({"valid": False}), 401
