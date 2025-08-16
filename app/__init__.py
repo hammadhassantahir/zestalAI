@@ -20,10 +20,10 @@ def create_app(config_class=Config):
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     
-    # Enable CORS - Single configuration
+    # Enable CORS - Production-ready configuration
     CORS(app, 
          resources={r"/api/*": {
-             "origins": ["http://localhost:3000", "http://localhost:3001"],  # Updated to match React's port
+             "origins": app.config['CORS_ORIGINS'],
              "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
              "allow_headers": ["Content-Type", "Authorization"],
              "expose_headers": ["Content-Type", "Authorization"],
@@ -33,11 +33,26 @@ def create_app(config_class=Config):
          supports_credentials=True
     )
     
+    # Alternative: For development/testing, you can allow all origins
+    # Uncomment the line below and comment out the CORS configuration above
+    # CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=False)
+    
     # Additional CORS headers for preflight requests
     @app.after_request
     def add_cors_headers(response):
         if request.method == 'OPTIONS':
-            response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            # Get the origin from the request
+            origin = request.headers.get('Origin')
+            if origin:
+                # Check if origin is in allowed list
+                allowed_origins = app.config['CORS_ORIGINS']
+                if origin in allowed_origins:
+                    response.headers['Access-Control-Allow-Origin'] = origin
+                else:
+                    response.headers['Access-Control-Allow-Origin'] = allowed_origins[0]
+            else:
+                response.headers['Access-Control-Allow-Origin'] = app.config['CORS_ORIGINS'][0]
+            
             response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
             response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
             response.headers['Access-Control-Max-Age'] = '600'

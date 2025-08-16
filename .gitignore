@@ -70,3 +70,5 @@ newServer
 .cursor/
 start_server.sh
 stop_server.sh
+
+backup/
