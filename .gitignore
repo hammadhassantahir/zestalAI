@@ -54,8 +54,8 @@ app/static/answers/
 app/static/recordings/
 env
 venv
-./config.py
-config.py
+
+# config.py
 env/
 nenv/
 lenv/
