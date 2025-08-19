@@ -12,6 +12,9 @@ class Config:
     # Base URL for email links
     BASE_URL = os.getenv('BASE_URL', 'http://localhost:5000')
     
+    # Frontend URL for OAuth redirects
+    FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+    
     # CORS Configuration
     CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:3001').split(',')
     
