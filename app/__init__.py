@@ -40,8 +40,8 @@ def create_app(config_class=Config):
     # Additional CORS headers for preflight requests
     @app.after_request
     def add_cors_headers(response):
-        if request.method == 'OPTIONS':
-            # Get the origin from the request
+        # Always add CORS headers for API routes
+        if request.path.startswith('/api/'):
             origin = request.headers.get('Origin')
             if origin:
                 # Check if origin is in allowed list
@@ -49,6 +49,8 @@ def create_app(config_class=Config):
                 if origin in allowed_origins:
                     response.headers['Access-Control-Allow-Origin'] = origin
                 else:
+                    # Log unauthorized origin for debugging
+                    logging.warning(f"Unauthorized origin: {origin}. Allowed: {allowed_origins}")
                     response.headers['Access-Control-Allow-Origin'] = allowed_origins[0]
             else:
                 response.headers['Access-Control-Allow-Origin'] = app.config['CORS_ORIGINS'][0]
@@ -57,6 +59,11 @@ def create_app(config_class=Config):
             response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
             response.headers['Access-Control-Max-Age'] = '600'
             response.headers['Access-Control-Allow-Credentials'] = 'true'
+            
+            # Handle preflight requests
+            if request.method == 'OPTIONS':
+                response.status_code = 200
+        
         return response
     
     # Error handler for all exceptions
