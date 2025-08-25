@@ -103,11 +103,18 @@ def facebook_login():
         
     try:
         data = request.get_json()
-        if not data or not data.get('access_token'):
+        logging.info(f"Facebook login request received with data: {data}")
+        
+        if not data:
+            logging.error("No JSON data received in Facebook login request")
+            return jsonify({'error': 'No data provided'}), 400
+            
+        if not data.get('access_token'):
+            logging.error("No access token provided in Facebook login request")
             return jsonify({'error': 'Facebook access token is required'}), 400
         
         access_token = data['access_token']
-        logging.info("Facebook login attempt received")
+        logging.info("Facebook login attempt received with token")
         
         # Verify the Facebook access token and get user info
         fb_user_info = verify_facebook_token(access_token)
@@ -231,13 +238,33 @@ def facebook_redirect():
 def verify_facebook_token(access_token):
     """Verify Facebook access token and return user info"""
     try:
-        # Facebook Graph API endpoint to verify token and get user info
+        # First verify the token's validity
+        debug_url = f"https://graph.facebook.com/debug_token?input_token={access_token}&access_token={access_token}"
+        debug_response = requests.get(debug_url, timeout=10)
+        debug_data = debug_response.json()
+        
+        logging.info(f"Token debug response: {debug_data}")
+        
+        if not debug_response.ok or not debug_data.get('data', {}).get('is_valid'):
+            logging.error(f"Invalid Facebook token: {debug_data}")
+            return None
+            
+        # If token is valid, get user info
         url = f"https://graph.facebook.com/me?fields=id,email,first_name,last_name&access_token={access_token}"
         response = requests.get(url, timeout=10)
         
         if response.status_code == 200:
             user_data = response.json()
             logging.info(f"Facebook user data retrieved: {user_data.get('email', 'No email')}")
+            
+            # Verify we got all required fields
+            required_fields = ['id', 'email']
+            missing_fields = [field for field in required_fields if not user_data.get(field)]
+            
+            if missing_fields:
+                logging.error(f"Missing required fields from Facebook: {missing_fields}")
+                return None
+                
             return user_data
         else:
             logging.error(f"Facebook API error: {response.status_code} - {response.text}")
