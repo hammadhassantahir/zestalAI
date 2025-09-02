@@ -36,3 +36,6 @@ class Config:
 
     # GoHighLevel API Key
     GHL_API_KEY = os.getenv('GHL_API_KEY')
+    GHL_CLIENT_ID = os.getenv('GHL_CLIENT_ID')
+    GHL_CLIENT_SECRET = os.getenv('GHL_CLIENT_SECRET')
+    GHL_REDIRECT_URI = os.getenv('GHL_REDIRECT_URI')

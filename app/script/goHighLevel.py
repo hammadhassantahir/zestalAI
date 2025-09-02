@@ -1,73 +1,70 @@
+# gohighlevel.py
 import requests
 import time
-
-
-class GoHighLevelError(Exception):
-    """Base exception for GoHighLevel API errors"""
-    pass
-
-
-class RateLimitError(GoHighLevelError):
-    """Raised when API rate limit is hit"""
-    pass
-
 
 class GoHighLevelAPI:
     BASE_URL = "https://rest.gohighlevel.com/v1"
 
-    def __init__(self, api_key: str, max_retries: int = 3, backoff_factor: float = 2.0):
-        """
-        :param api_key: Your Location API Key
-        :param max_retries: Max retry attempts when hitting rate limit
-        :param backoff_factor: Multiplier for exponential backoff (seconds)
-        """
-        self.api_key = api_key
-        self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+    def __init__(self, client_id, client_secret, redirect_uri, refresh_token=None, access_token=None):
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.redirect_uri = redirect_uri
+        self.access_token = access_token
+        self.refresh_token = refresh_token
+        self.token_expiry = None  # epoch timestamp
+
+    def get_access_token(self, code):
+        """Exchange authorization code for access/refresh tokens"""
+        url = "https://services.leadconnectorhq.com/oauth/token"
+        payload = {
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": self.redirect_uri,
         }
-        self.max_retries = max_retries
-        self.backoff_factor = backoff_factor
+        r = requests.post(url, data=payload)
+        r.raise_for_status()
+        data = r.json()
+        self._store_tokens(data)
+        return data
 
-    # ----------------
-    # Internal Request
-    # ----------------
+    def refresh_access_token(self):
+        """Refresh expired access token"""
+        url = "https://services.leadconnectorhq.com/oauth/token"
+        payload = {
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "grant_type": "refresh_token",
+            "refresh_token": self.refresh_token,
+        }
+        r = requests.post(url, data=payload)
+        r.raise_for_status()
+        data = r.json()
+        self._store_tokens(data)
+        return data
+
+    def _store_tokens(self, data):
+        self.access_token = data["access_token"]
+        self.refresh_token = data.get("refresh_token", self.refresh_token)
+        self.token_expiry = time.time() + data.get("expires_in", 3600)
+
+    def _ensure_token(self):
+        if not self.access_token:
+            raise Exception("Access token not set. Use get_access_token(code) first.")
+        if self.token_expiry and time.time() > self.token_expiry - 30:
+            self.refresh_access_token()
+
     def request(self, method, endpoint, params=None, data=None, json=None):
+        """Generic request wrapper"""
+        self._ensure_token()
         url = f"{self.BASE_URL}{endpoint}"
+        headers = {"Authorization": f"Bearer {self.access_token}"}
+        r = requests.request(method, url, headers=headers, params=params, data=data, json=json)
+        r.raise_for_status()
+        return r.json()
 
-        retries = 0
-        while True:
-            r = requests.request(
-                method, url, headers=self.headers, params=params, data=data, json=json
-            )
-
-            if r.status_code == 429:  # Rate limit
-                if retries < self.max_retries:
-                    wait_time = self.backoff_factor * (2 ** retries)
-                    print(f"⚠️ Rate limited. Retrying in {wait_time:.1f}s...")
-                    time.sleep(wait_time)
-                    retries += 1
-                    continue
-                else:
-                    raise RateLimitError("Exceeded API rate limit after retries")
-
-            if not r.ok:
-                try:
-                    error_data = r.json()
-                except ValueError:
-                    error_data = r.text
-                raise GoHighLevelError(
-                    f"API Error {r.status_code}: {error_data}"
-                )
-
-            try:
-                return r.json()
-            except ValueError:
-                return r.text
-
-    # ----------------
-    # Generic Helpers
-    # ----------------
+    # Convenience methods
     def get(self, endpoint, params=None):
         return self.request("GET", endpoint, params=params)
 
@@ -79,75 +76,3 @@ class GoHighLevelAPI:
 
     def delete(self, endpoint, params=None):
         return self.request("DELETE", endpoint, params=params)
-
-    # ----------------
-    # Contacts
-    # ----------------
-    def get_contacts(self, limit=20, query=None):
-        params = {"limit": limit}
-        if query:
-            params["query"] = query
-        return self.get("/contacts/", params=params)
-
-    def create_contact(self, contact_data: dict):
-        return self.post("/contacts/", json=contact_data)
-
-    def update_contact(self, contact_id: str, contact_data: dict):
-        return self.put(f"/contacts/{contact_id}", json=contact_data)
-
-    def delete_contact(self, contact_id: str):
-        return self.delete(f"/contacts/{contact_id}")
-
-    # ----------------
-    # Opportunities
-    # ----------------
-    def get_opportunities(self, pipeline_id=None):
-        params = {}
-        if pipeline_id:
-            params["pipelineId"] = pipeline_id
-        return self.get("/opportunities/", params=params)
-
-    def create_opportunity(self, opportunity_data: dict):
-        return self.post("/opportunities/", json=opportunity_data)
-
-    # ----------------
-    # Pipelines
-    # ----------------
-    def get_pipelines(self):
-        return self.get("/pipelines/")
-
-    # ----------------
-    # Appointments
-    # ----------------
-    def get_appointments(self, limit=20):
-        return self.get("/appointments/", params={"limit": limit})
-
-    def create_appointment(self, appointment_data: dict):
-        return self.post("/appointments/", json=appointment_data)
-
-    # ----------------
-    # Conversations
-    # ----------------
-    def get_conversations(self, limit=20):
-        return self.get("/conversations/", params={"limit": limit})
-
-    def send_message(self, conversation_id: str, message_data: dict):
-        return self.post(f"/conversations/{conversation_id}/messages", json=message_data)
-
-    # ----------------
-    # Tags
-    # ----------------
-    def get_tags(self):
-        return self.get("/tags/")
-
-    def create_tag(self, name: str):
-        return self.post("/tags/", json={"name": name})
-
-    # ----------------
-    # Custom Fields
-    # ----------------
-    def get_custom_fields(self):
-        return self.get("/custom-fields/")
-
-    def create_custom_field(self, field_data: dict):
-        return self.post("/custom-fields/", json=field_data)
