@@ -79,7 +79,7 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     
     # Register blueprints
-    app.register_blueprint(auth_bp, url_prefix='/auth')
-    app.register_blueprint(main)
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(main, url_prefix='/api')
     
     return app
