@@ -22,7 +22,7 @@ def create_app(config_class=Config):
     
     # Enable CORS - Production-ready configuration
     CORS(app, 
-         resources={r"*": {
+         resources={r"/api/*": {
              "origins": app.config['CORS_ORIGINS'],
              "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
              "allow_headers": ["Content-Type", "Authorization"],
