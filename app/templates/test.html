@@ -1,0 +1,58 @@
+<html>
+
+<body>
+    <h1>Test2</h1>
+
+    <h2>Contacts</h2>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Type</th>
+                <th>Source</th>
+                <th>Tags</th>
+                <th>Date Added</th>
+                <th>Country</th>
+                <th>Timezone</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if contacts and contacts.contacts %}
+                {% for contact in contacts.contacts %}
+                    <tr>
+                        <td>
+                            {% if contact.firstName or contact.lastName %}
+                                {{ contact.firstName or '' }} {{ contact.lastName or '' }}
+                            {% else %}
+                                {{ contact.contactName or '' }}
+                            {% endif %}
+                        </td>
+                        <td>{{ contact.email or '' }}</td>
+                        <td>{{ contact.phone or '' }}</td>
+                        <td>{{ contact.type or '' }}</td>
+                        <td>{{ contact.source or '' }}</td>
+                        <td>
+                            {% if contact.tags %}
+                                {{ contact.tags | join(', ') }}
+                            {% endif %}
+                        </td>
+                        <td>{{ contact.dateAdded or '' }}</td>
+                        <td>{{ contact.country or '' }}</td>
+                        <td>{{ contact.timezone or '' }}</td>
+                    </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="9">No contacts found.</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+</body>
+
+</html>
+
+</html>

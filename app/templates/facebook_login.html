@@ -74,7 +74,7 @@
             console.log('Sending token to backend...');
             document.getElementById('result').innerHTML = 'Authenticating with server...';
             
-            fetch('/api/auth/facebook/login', {
+            fetch('/auth/facebook/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -33,3 +33,6 @@ class Config:
     FACEBOOK_CLIENT_ID = os.getenv('FACEBOOK_CLIENT_ID')
     FACEBOOK_CLIENT_SECRET = os.getenv('FACEBOOK_CLIENT_SECRET')
     FACEBOOK_OAUTH_REDIRECT_URI = os.getenv('FACEBOOK_OAUTH_REDIRECT_URI')
+
+    # GoHighLevel API Key
+    GHL_API_KEY = os.getenv('GHL_API_KEY')

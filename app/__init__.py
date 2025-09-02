@@ -22,7 +22,7 @@ def create_app(config_class=Config):
     
     # Enable CORS - Production-ready configuration
     CORS(app, 
-         resources={r"/api/*": {
+         resources={r"*": {
              "origins": app.config['CORS_ORIGINS'],
              "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
              "allow_headers": ["Content-Type", "Authorization"],
@@ -79,7 +79,7 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     
     # Register blueprints
-    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(main)
     
     return app
