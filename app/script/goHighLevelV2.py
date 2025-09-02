@@ -15,12 +15,12 @@ class GoHighLevelAPI:
     def get_auth_url(self):
         """Generate the authorization URL for GoHighLevel OAuth."""
         scopes = [
-            "contacts.readonly",
-            "contacts.write",
-            "conversations.readonly",
-            "conversations.write",
-            "appointments.readonly",
-            "appointments.write",
+            # "contacts.readonly",
+            # "contacts.write",
+            # "conversations.readonly",
+            # "conversations.write",
+            # "appointments.readonly",
+            # "appointments.write",
             "locations.readonly"  # Required for location access
         ]
         
