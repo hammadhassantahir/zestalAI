@@ -2,8 +2,8 @@ import requests
 from datetime import datetime, timedelta
 
 class GoHighLevelAPI:
-    BASE_URL = "https://marketplace.gohighlevel.com"
-    # BASE_URL = "https://services.leadconnectorhq.com"
+    AUTH_URL = "https://marketplace.gohighlevel.com"
+    API_URL = "https://services.leadconnectorhq.com"
     
     def __init__(self, client_id, client_secret, redirect_uri):
         self.client_id = client_id
@@ -26,7 +26,7 @@ class GoHighLevelAPI:
         ]
         
         return (
-            f"https://marketplace.gohighlevel.com/oauth/chooselocation"
+            f"{self.AUTH_URL}/oauth/chooselocation"
             f"?client_id={self.client_id}"
             f"&redirect_uri={self.redirect_uri}"
             f"&response_type=code"
@@ -35,28 +35,30 @@ class GoHighLevelAPI:
 
     def exchange_code_for_token(self, auth_code):
         """Exchange authorization code for access token."""
-        url = f"{self.BASE_URL}/oauth/token"
+        url = f"{self.API_URL}/oauth/token"
         
-        # Create multipart form data
-        files = {
-            'client_id': (None, self.client_id),
-            'client_secret': (None, self.client_secret),
-            'grant_type': (None, 'authorization_code'),
-            'code': (None, auth_code),
-            'redirect_uri': (None, self.redirect_uri)
+        # Create form data
+        data = {
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
+            'grant_type': 'authorization_code',
+            'code': auth_code,
+            'redirect_uri': self.redirect_uri
         }
         
         headers = {
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded'
         }
         
         print(f"Sending token request to {url}")  # Debug logging
-        print(f"With files: {files}")  # Debug logging
+        print(f"With data: {data}")  # Debug logging
+        print(f"Headers: {headers}")  # Debug logging
         
-        # Use requests with multipart form data
+        # Use requests with form-urlencoded data
         response = requests.post(
             url, 
-            files=files,  # Use files for multipart/form-data
+            data=data,
             headers=headers
         )
         
