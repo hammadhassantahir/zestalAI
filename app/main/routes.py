@@ -58,8 +58,10 @@ def ghl_callback():
     error = request.args.get('error')
     error_description = request.args.get('error_description')
 
-    print(f"Callback received - Code: {code}, Error: {error}, Description: {error_description}")  # Debug logging
-    print(f"All args: {request.args}")  # Debug all arguments
+    print(f"Callback received with full URL: {request.url}")  # Debug full URL
+    print(f"Callback received - Code: {code}, Error: {error}, Description: {error_description}")
+    print(f"All args: {request.args}")
+    print(f"Headers: {dict(request.headers)}")  # Debug headers
 
     if error:
         return jsonify({
@@ -72,6 +74,8 @@ def ghl_callback():
 
     try:
         ghl_client = get_ghl_client()
+        print(f"Client configuration: ID={ghl_client.client_id}, Redirect={ghl_client.redirect_uri}")  # Debug config
+        
         # Exchange the code for tokens
         token_data = ghl_client.exchange_code_for_token(code)
         
@@ -83,9 +87,11 @@ def ghl_callback():
         })
     except Exception as e:
         print(f"Error in callback: {str(e)}")  # Add debug logging
+        print(f"Full error details: {repr(e)}")  # More detailed error info
         return jsonify({
             "error": "Token exchange failed",
-            "details": str(e)
+            "details": str(e),
+            "type": type(e).__name__
         }), 500
 
 @main.route('/ghl/auth')

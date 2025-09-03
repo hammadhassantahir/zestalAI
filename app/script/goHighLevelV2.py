@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 class GoHighLevelAPI:
     BASE_URL = "https://marketplace.gohighlevel.com"
+    # BASE_URL = "https://services.leadconnectorhq.com"
     
     def __init__(self, client_id, client_secret, redirect_uri):
         self.client_id = client_id
@@ -36,25 +37,26 @@ class GoHighLevelAPI:
         """Exchange authorization code for access token."""
         url = f"{self.BASE_URL}/oauth/token"
         
-        # Format payload as form data
-        payload = {
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-            "grant_type": "authorization_code",
-            "code": auth_code,
-            "user_type": "Location",
-            "redirect_uri": self.redirect_uri
+        # Create multipart form data
+        files = {
+            'client_id': (None, self.client_id),
+            'client_secret': (None, self.client_secret),
+            'grant_type': (None, 'authorization_code'),
+            'code': (None, auth_code),
+            'redirect_uri': (None, self.redirect_uri)
         }
         
         headers = {
-            'Content-Type': 'application/x-www-form-urlencoded',
             'Accept': 'application/json'
         }
         
-        # Use requests with form-encoded data
+        print(f"Sending token request to {url}")  # Debug logging
+        print(f"With files: {files}")  # Debug logging
+        
+        # Use requests with multipart form data
         response = requests.post(
             url, 
-            data=payload,  # Use data instead of json for form-encoded
+            files=files,  # Use files for multipart/form-data
             headers=headers
         )
         
