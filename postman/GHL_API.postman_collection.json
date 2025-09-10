@@ -1,0 +1,492 @@
+{
+  "info": {
+    "_postman_id": "ghl-api-collection",
+    "name": "GHL API Collection",
+    "description": "API collection for GoHighLevel integration",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Contact Management",
+      "item": [
+        {
+          "name": "List Contacts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ghl/contacts?limit=10&page=1&query=&sortBy=dateCreated&tags=&dateCreated=",
+              "host": ["{{base_url}}"],
+              "path": ["ghl", "contacts"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of records to return"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "query",
+                  "value": "",
+                  "description": "Search query"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "dateCreated",
+                  "description": "Sort field"
+                },
+                {
+                  "key": "tags",
+                  "value": "",
+                  "description": "Filter by tags"
+                },
+                {
+                  "key": "dateCreated",
+                  "value": "",
+                  "description": "Filter by creation date"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Contact",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ghl/contacts/{{contact_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["ghl", "contacts", "{{contact_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Contact",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"phone\": \"+1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ghl/contacts",
+              "host": ["{{base_url}}"],
+              "path": ["ghl", "contacts"]
+            }
+          }
+        },
+        {
+          "name": "Update Contact",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe Updated\",\n  \"email\": \"john.doe@example.com\",\n  \"phone\": \"+1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ghl/contacts/{{contact_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["ghl", "contacts", "{{contact_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Contact",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ghl/contacts/{{contact_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["ghl", "contacts", "{{contact_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Location Management",
+      "item": [
+        {
+          "name": "Get Location",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ghl/locations/{{location_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["ghl", "locations", "{{location_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Campaign Management",
+      "item": [
+        {
+          "name": "List Campaigns",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ghl/campaigns?limit=10&page=1&status=",
+              "host": ["{{base_url}}"],
+              "path": ["ghl", "campaigns"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of records to return"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Campaign status"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Task Management",
+      "item": [
+        {
+          "name": "List Tasks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ghl/tasks?limit=10&page=1&status=&dueDate=",
+              "host": ["{{base_url}}"],
+              "path": ["ghl", "tasks"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of records to return"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Task status"
+                },
+                {
+                  "key": "dueDate",
+                  "value": "",
+                  "description": "Task due date"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"New Task\",\n  \"description\": \"Task description\",\n  \"dueDate\": \"2024-03-20T10:00:00Z\",\n  \"status\": \"pending\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ghl/tasks",
+              "host": ["{{base_url}}"],
+              "path": ["ghl", "tasks"]
+            }
+          }
+        },
+        {
+          "name": "Update Task",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Task\",\n  \"description\": \"Updated task description\",\n  \"dueDate\": \"2024-03-20T10:00:00Z\",\n  \"status\": \"in_progress\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ghl/tasks/{{task_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["ghl", "tasks", "{{task_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Task",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ghl/tasks/{{task_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["ghl", "tasks", "{{task_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Calendar Management",
+      "item": [
+        {
+          "name": "List Calendars",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ghl/calendars?limit=10&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["ghl", "calendars"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of records to return"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Calendar",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ghl/calendars/{{calendar_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["ghl", "calendars", "{{calendar_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Calendar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Calendar\",\n  \"description\": \"Calendar description\",\n  \"timezone\": \"UTC\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ghl/calendars",
+              "host": ["{{base_url}}"],
+              "path": ["ghl", "calendars"]
+            }
+          }
+        },
+        {
+          "name": "Update Calendar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Calendar\",\n  \"description\": \"Updated calendar description\",\n  \"timezone\": \"UTC\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ghl/calendars/{{calendar_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["ghl", "calendars", "{{calendar_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Calendar",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ghl/calendars/{{calendar_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["ghl", "calendars", "{{calendar_id}}"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "your_jwt_token_here",
+      "type": "string"
+    },
+    {
+      "key": "contact_id",
+      "value": "contact_id_here",
+      "type": "string"
+    },
+    {
+      "key": "location_id",
+      "value": "location_id_here",
+      "type": "string"
+    },
+    {
+      "key": "task_id",
+      "value": "task_id_here",
+      "type": "string"
+    },
+    {
+      "key": "calendar_id",
+      "value": "calendar_id_here",
+      "type": "string"
+    }
+  ]
+}

@@ -37,7 +37,7 @@ def login():
         if not user.is_verified:
             return jsonify({'error': 'Please verify your email first'}), 403
         
-        access_token = create_access_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
         
         response_data = {
             'access_token': access_token,
@@ -84,7 +84,7 @@ def signup():
         db.session.commit()
         
         # Create access token
-        access_token = create_access_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
         
         return jsonify({
             'message': 'User registered successfully',
@@ -154,7 +154,7 @@ def facebook_login():
             logging.info(f"New Facebook user created: {email}")
         
         # Create JWT access token
-        access_token = create_access_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
         
         response_data = {
             'access_token': access_token,

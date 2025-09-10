@@ -1,136 +1,123 @@
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
 
 class GoHighLevelAPI:
-    AUTH_URL = "https://marketplace.gohighlevel.com"
     API_URL = "https://services.leadconnectorhq.com"
     
-    def __init__(self, client_id, client_secret, redirect_uri):
-        self.client_id = client_id
-        self.client_secret = client_secret
-        self.redirect_uri = redirect_uri
-        self.access_token = None
-        self.refresh_token = None
-        self.token_expires_at = None
-
-    def get_auth_url(self):
-        """Generate the authorization URL for GoHighLevel OAuth."""
-        scopes = [
-            # "contacts.readonly",
-            # "contacts.write",
-            # "conversations.readonly",
-            # "conversations.write",
-            # "appointments.readonly",
-            # "appointments.write",
-            "locations.readonly"  # Required for location access
-        ]
-        
-        return (
-            f"{self.AUTH_URL}/oauth/chooselocation"
-            f"?client_id={self.client_id}"
-            f"&redirect_uri={self.redirect_uri}"
-            f"&response_type=code"
-            f"&scope={' '.join(scopes)}"  # Space-separated instead of comma-separated
-        )
-
-    def exchange_code_for_token(self, auth_code):
-        """Exchange authorization code for access token."""
-        url = f"{self.API_URL}/oauth/token"
-        
-        # Create form data
-        data = {
-            'client_id': self.client_id,
-            'client_secret': self.client_secret,
-            'grant_type': 'authorization_code',
-            'code': auth_code,
-            'redirect_uri': self.redirect_uri
-        }
-        
-        headers = {
-            'Accept': 'application/json',
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
-        
-        print(f"Sending token request to {url}")  # Debug logging
-        print(f"With data: {data}")  # Debug logging
-        print(f"Headers: {headers}")  # Debug logging
-        
-        # Use requests with form-urlencoded data
-        response = requests.post(
-            url, 
-            data=data,
-            headers=headers
-        )
-        
-        print(f"Token exchange response: {response.status_code} - {response.text}")  # Debug logging
-        
-        if response.status_code == 200:
-            data = response.json()
-            self._update_tokens(data)
-            return data
-        else:
-            raise Exception(f"Failed to get token: {response.text}")
-
-    def refresh_access_token(self):
-        """Refresh the access token using the refresh token."""
-        if not self.refresh_token:
-            raise Exception("No refresh token available")
-            
-        url = f"{self.BASE_URL}/oauth/token"
-        payload = {
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-            "grant_type": "refresh_token",
-            "refresh_token": self.refresh_token
-        }
-        
-        response = requests.post(url, json=payload)
-        if response.status_code == 200:
-            data = response.json()
-            self._update_tokens(data)
-            return data
-        else:
-            raise Exception(f"Failed to refresh token: {response.text}")
-
-    def _update_tokens(self, token_data):
-        """Update token information."""
-        self.access_token = token_data["access_token"]
-        self.refresh_token = token_data.get("refresh_token", self.refresh_token)
-        expires_in = token_data.get("expires_in", 86400)  # Default 24 hours
-        self.token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+    def __init__(self, access_token, location_id):
+        """Initialize with Private Integration Token and Location ID."""
+        self.access_token = access_token
+        self.location_id = location_id
 
     def _get_headers(self):
-        """Get headers for API requests with token refresh if needed."""
-        if self.token_expires_at and datetime.now() >= self.token_expires_at:
-            self.refresh_access_token()
-            
-        if not self.access_token:
-            raise Exception("No access token available")
-            
+        """Get headers for API requests."""
         return {
-            "Authorization": f"Bearer {self.access_token}",
-            "Version": "2021-07-28",
-            "Content-Type": "application/json"
+            'Authorization': f'Bearer {self.access_token}',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Version': '2021-07-28'
         }
 
-    # API Methods
-    def get_contacts(self, limit=100, page=1):
+    def get_location_info(self):
+        """Get current location information."""
+        url = f"{self.API_URL}/locations/{self.location_id}"
+        
+        response = requests.get(
+            url,
+            headers=self._get_headers()
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f"Failed to get location info: {response.text}")
+
+    def get_contacts(self, limit=20, query=None, start_after_id=None, start_after=None):
         """Get contacts from GoHighLevel."""
-        url = f"{self.BASE_URL}/contacts/"
-        params = {"limit": limit, "page": page}
-        response = requests.get(url, headers=self._get_headers(), params=params)
-        return response.json()
+        url = f"{self.API_URL}/contacts/"
+        
+        params = {
+            "locationId": self.location_id,
+            "limit": min(limit, 100)  # API allows max 100 records
+        }
+        
+        if query:
+            params["query"] = query
+        if start_after_id:
+            params["startAfterId"] = start_after_id
+        if start_after:
+            params["startAfter"] = start_after
+        
+        response = requests.get(
+            url, 
+            headers=self._get_headers(),
+            params=params
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f"Failed to get contacts: {response.text}")
 
     def get_appointments(self, limit=100, page=1):
         """Get appointments from GoHighLevel."""
-        url = f"{self.BASE_URL}/appointments/v2"
-        params = {"limit": limit, "page": page}
-        response = requests.get(url, headers=self._get_headers(), params=params)
-        return response.json()
+        url = f"{self.API_URL}/appointments/v2"
+        params = {
+            "locationId": self.location_id,
+            "limit": limit,
+            "page": page
+        }
+        
+        response = requests.get(
+            url, 
+            headers=self._get_headers(),
+            params=params
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f"Failed to get appointments: {response.text}")
 
     def get_conversations(self, limit=100, page=1):
         """Get conversations from GoHighLevel."""
-        url = f"{self.BASE_URL}/conversations/v2"
-        params = {"limit": limit, "page": page}
-        response = requests.get(url, headers=self._get_headers(), params=params)
-        return response.json()
+        url = f"{self.API_URL}/conversations/v2"
+        params = {
+            "locationId": self.location_id,
+            "limit": limit,
+            "page": page
+        }
+        
+        response = requests.get(
+            url, 
+            headers=self._get_headers(),
+            params=params
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f"Failed to get conversations: {response.text}")
+
+    def create_contact(self, contact_data):
+        """Create a new contact."""
+        url = f"{self.API_URL}/contacts/"
+        
+        # Ensure locationId is in the contact data
+        if 'locationId' not in contact_data:
+            contact_data['locationId'] = self.location_id
+        
+        response = requests.post(
+            url,
+            headers=self._get_headers(),
+            json=contact_data
+        )
+        
+        if response.status_code in [200, 201]:
+            return response.json()
+        else:
+            raise Exception(f"Failed to create contact: {response.text}")
+
+    def search_contacts(self, query, limit=20):
+        """Search contacts with a specific query."""
+        return self.get_contacts(limit=limit, query=query)

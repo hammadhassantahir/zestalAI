@@ -5,8 +5,13 @@ from flask_migrate import Migrate
 from .config import Config
 from .auth.routes import auth_bp
 from .main.routes import main
+from .ghl.routes import ghl
 from .models.user import User
 import logging
+import requests
+import json
+from functools import wraps
+import os
 
 migrate = Migrate()
 
@@ -81,5 +86,8 @@ def create_app(config_class=Config):
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(main, url_prefix='/api')
+    app.register_blueprint(ghl, url_prefix='/api/ghl')
     
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.WARNING)
     return app

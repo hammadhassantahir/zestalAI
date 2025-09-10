@@ -1,0 +1,183 @@
+from flask import Blueprint, render_template, current_app, Response, request, jsonify, send_from_directory
+from app.script.goHighLevelV2 import GoHighLevelAPI
+from app.script.highLevelAPI import LeadConnectorClient
+import requests
+import json
+from functools import wraps
+import os
+
+main = Blueprint('main', __name__)
+
+def get_client():
+    return LeadConnectorClient(
+        access_token=current_app.config['GHL_ACCESS_TOKEN'],
+        location_id=current_app.config['GHL_LOCATION_ID']
+    )
+
+@main.route('/ghl/mytest')
+def mytest():
+    try:
+        url = "https://services.leadconnectorhq.com/contacts/?locationId="+current_app.config['GHL_LOCATION_ID']+"&limit=2"
+        payload = {}
+        headers = {
+            'Accept': 'application/json',
+            'Version': '2021-07-28',
+            'Authorization': 'Bearer '+current_app.config['GHL_ACCESS_TOKEN']
+        }
+        response = requests.request("GET", url, headers=headers, data=payload)
+        print(response.text)
+        return jsonify(response.text), 200
+    except Exception as e:
+        print(f"***************************ABCD Error getting location info: {str(e)}")  # Debug logging
+        return jsonify({"error": str(e)}), 500
+
+@main.route('/ghl/contacts2')
+def get_contacts2():
+    try:
+        client = LeadConnectorClient(
+            access_token=current_app.config['GHL_ACCESS_TOKEN'],
+            location_id=current_app.config['GHL_LOCATION_ID']
+        )
+        contacts = client.list_contacts(limit=2)
+        return jsonify(contacts), 200
+    except Exception as e:
+        print(f"*************Error getting contacts: {str(e)}")  # Debug logging
+        return jsonify({"error": str(e)}), 500
+
+
+        
+
+
+
+def get_ghl_client():
+    """Get an instance of GoHighLevel V2 API client."""
+    return GoHighLevelAPI(
+        access_token=current_app.config['GHL_ACCESS_TOKEN'],
+        location_id=current_app.config['GHL_LOCATION_ID']
+    )
+
+@main.route('/')
+def index():
+    return "Welcome to ZestalAI Auth API"
+
+@main.route('/favicon.ico')
+def favicon():
+    """Handle favicon requests."""
+    return '', 204  # Return empty response with "No Content" status
+
+@main.route('/ghl/location')
+def get_location():
+    """Get current location information."""
+    try:
+        ghl_client = get_ghl_client()
+        location_info = ghl_client.get_location_info()
+        return jsonify(location_info)
+    except Exception as e:
+        print(f"Error getting location info: {str(e)}")  # Debug logging
+        return jsonify({"error": str(e)}), 500
+
+@main.route('/ghl/contacts')
+def get_contacts():
+    """Get contacts from GoHighLevel."""
+    try:
+        limit = request.args.get('limit', 20, type=int)
+        query = request.args.get('query')
+        start_after_id = request.args.get('startAfterId')
+        start_after = request.args.get('startAfter', type=int)
+        
+        ghl_client = get_ghl_client()
+        contacts = ghl_client.get_contacts(
+            limit=limit,
+            query=query,
+            start_after_id=start_after_id,
+            start_after=start_after
+        )
+        return jsonify(contacts)
+    except Exception as e:
+        print(f"Error getting contacts: {str(e)}")  # Debug logging
+        return jsonify({"error": str(e)}), 500
+
+@main.route('/ghl/contacts/search')
+def search_contacts():
+    """Search contacts with a query."""
+    try:
+        query = request.args.get('query')
+        if not query:
+            return jsonify({"error": "Query parameter is required"}), 400
+            
+        limit = request.args.get('limit', 20, type=int)
+        ghl_client = get_ghl_client()
+        contacts = ghl_client.search_contacts(query=query, limit=limit)
+        return jsonify(contacts)
+    except Exception as e:
+        print(f"Error searching contacts: {str(e)}")  # Debug logging
+        return jsonify({"error": str(e)}), 500
+
+@main.route('/ghl/appointments')
+def get_appointments():
+    """Get appointments from GoHighLevel."""
+    try:
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 100, type=int)
+        ghl_client = get_ghl_client()
+        appointments = ghl_client.get_appointments(limit=limit, page=page)
+        return jsonify(appointments)
+    except Exception as e:
+        print(f"Error getting appointments: {str(e)}")  # Debug logging
+        return jsonify({"error": str(e)}), 500
+
+@main.route('/ghl/conversations')
+def get_conversations():
+    """Get conversations from GoHighLevel."""
+    try:
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 100, type=int)
+        ghl_client = get_ghl_client()
+        conversations = ghl_client.get_conversations(limit=limit, page=page)
+        return jsonify(conversations)
+    except Exception as e:
+        print(f"Error getting conversations: {str(e)}")  # Debug logging
+        return jsonify({"error": str(e)}), 500
+
+@main.route('/ghl/contacts', methods=['POST'])
+def create_contact():
+    """Create a new contact in GoHighLevel."""
+    try:
+        contact_data = request.get_json()
+        if not contact_data:
+            return jsonify({"error": "No contact data provided"}), 400
+            
+        ghl_client = get_ghl_client()
+        new_contact = ghl_client.create_contact(contact_data)
+        return jsonify(new_contact), 201
+    except Exception as e:
+        print(f"Error creating contact: {str(e)}")  # Debug logging
+        return jsonify({"error": str(e)}), 500
+
+@main.route('/ghl/dashboard')
+def ghl_dashboard():
+    """Get an overview of GoHighLevel data."""
+    try:
+        ghl_client = get_ghl_client()
+        
+        # Get location info first
+        location = ghl_client.get_location_info()
+        
+        # Get other data
+        contacts = ghl_client.get_contacts(limit=5)
+        appointments = ghl_client.get_appointments(limit=5)
+        conversations = ghl_client.get_conversations(limit=5)
+        
+        return jsonify({
+            "location": location,
+            "contacts": contacts,
+            "appointments": appointments,
+            "conversations": conversations,
+            "status": "success"
+        })
+    except Exception as e:
+        print(f"Error in dashboard: {str(e)}")  # Debug logging
+        return jsonify({
+            "error": str(e),
+            "status": "error"
+        }), 500
