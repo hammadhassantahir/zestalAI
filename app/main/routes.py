@@ -3,6 +3,7 @@ from app.script.goHighLevel import GoHighLevelAPI
 from app.script.goHighLevelV2 import GoHighLevelAPI as GoHighLevelV2API
 import requests
 import json
+import os
 from functools import wraps
 
 
@@ -29,6 +30,31 @@ def require_token(f):
 @main.route('/ghlRedirects')
 def ghlRedirects():
     data = request.get_json()
+    print('***************************************************')
+    print(data)
+    return Response(status=200)
+
+
+@main.route('/zestal/webhook', methods=['POST'])
+def zestal_webhook():
+    data = request.get_json()
+    fileName = 'zestal_webhook.json'
+    filePath = os.path.join(current_app.root_path, 'static', fileName)
+    if os.path.exists(filePath):
+        with open(filePath, 'r') as f:
+            try:
+                existing_data = json.load(f)
+                if isinstance(existing_data, dict):
+                    existing_data = [existing_data]
+            except json.JSONDecodeError:
+                existing_data = []
+    else:
+        existing_data = []
+
+    existing_data.append(data)
+
+    with open(filePath, 'w') as f:
+        json.dump(existing_data, f, indent=4)
     print('***************************************************')
     print(data)
     return Response(status=200)
