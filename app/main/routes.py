@@ -60,6 +60,72 @@ def zestal_webhook():
     return Response(status=200)
 
 
+@main.route('/zestal/loglead', methods=['POST'])
+def log_lead():
+    """Log lead information from the landing page form."""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['firstName', 'email']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({
+                    "error": f"Missing required field: {field}",
+                    "status": "error"
+                }), 400
+        
+        # Extract form data
+        lead_data = {
+            "firstName": data.get('firstName'),
+            "email": data.get('email'),
+            "phone": data.get('phone', ''),
+            "emailConsent": data.get('emailConsent', False),
+            "smsConsent": data.get('smsConsent', False),
+            "referenceCode": data.get('referenceCode', '')
+        }
+        
+        # Log the lead data to file (you can modify this to store in database)
+        fileName = 'zestal_leads.json'
+        filePath = os.path.join(current_app.root_path, 'static', fileName)
+        
+        if os.path.exists(filePath):
+            with open(filePath, 'r') as f:
+                try:
+                    existing_data = json.load(f)
+                    if not isinstance(existing_data, list):
+                        existing_data = [existing_data] if existing_data else []
+                except json.JSONDecodeError:
+                    existing_data = []
+        else:
+            existing_data = []
+        
+        # Add timestamp
+        import datetime
+        lead_data['timestamp'] = datetime.datetime.now().isoformat()
+        
+        existing_data.append(lead_data)
+        
+        with open(filePath, 'w') as f:
+            json.dump(existing_data, f, indent=4)
+        
+        print('Lead logged:', lead_data)
+        
+        return jsonify({
+            "message": "Lead logged successfully",
+            "status": "success",
+            "data": lead_data
+        }), 200
+        
+    except Exception as e:
+        print(f"Error logging lead: {str(e)}")
+        return jsonify({
+            "error": "Failed to log lead",
+            "details": str(e),
+            "status": "error"
+        }), 500
+
+
 @main.route('/facebook-login')
 def facebook_login_page():
     return render_template('facebook_login.html', 

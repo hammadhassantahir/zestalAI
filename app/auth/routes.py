@@ -315,3 +315,158 @@ def verify_token():
         return jsonify({"valid": True, "user_id": current_user, "user": user.to_dict()}), 200
     except:
         return jsonify({"valid": False}), 401
+
+@auth_bp.route('/facebook/webhook', methods=['GET', 'POST'])
+def facebook_webhook():
+    """Handle Facebook webhook verification and event notifications"""
+    try:
+        if request.method == 'GET':
+            # Handle webhook verification
+            return verify_facebook_webhook()
+        elif request.method == 'POST':
+            # Handle webhook events
+            return handle_facebook_webhook_event()
+    except Exception as e:
+        logging.error(f"Error in Facebook webhook: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+def verify_facebook_webhook():
+    """Verify Facebook webhook subscription request"""
+    try:
+        # Facebook sends these parameters for verification
+        mode = request.args.get('hub.mode')
+        token = request.args.get('hub.verify_token')
+        challenge = request.args.get('hub.challenge')
+        
+        logging.info(f"Facebook webhook verification - Mode: {mode}, Token present: {token is not None}")
+        
+        # Check if this is a verification request
+        if mode and token:
+            # Verify the mode and token
+            if mode == 'subscribe' and token == current_app.config.get('FACEBOOK_WEBHOOK_VERIFY_TOKEN'):
+                logging.info("Facebook webhook verification successful")
+                # Respond with the challenge token from the request
+                return challenge, 200
+            else:
+                logging.error(f"Facebook webhook verification failed - Invalid token or mode")
+                return 'Forbidden', 403
+        else:
+            logging.error("Facebook webhook verification failed - Missing parameters")
+            return 'Bad Request', 400
+            
+    except Exception as e:
+        logging.error(f"Error in Facebook webhook verification: {str(e)}")
+        return 'Internal Server Error', 500
+
+def handle_facebook_webhook_event():
+    """Handle incoming Facebook webhook events"""
+    try:
+        # Get the request body
+        body = request.get_json()
+        
+        if not body:
+            logging.error("Facebook webhook event: No JSON body received")
+            return 'Bad Request', 400
+        
+        logging.info(f"Facebook webhook event received: {body}")
+        
+        # Verify the request is from Facebook (optional but recommended)
+        # You can implement signature verification here if needed
+        
+        # Process the webhook payload
+        if body.get('object') == 'page':
+            # Handle page events
+            for entry in body.get('entry', []):
+                page_id = entry.get('id')
+                time = entry.get('time')
+                
+                logging.info(f"Processing page event for page {page_id} at {time}")
+                
+                # Handle messaging events
+                if 'messaging' in entry:
+                    for messaging_event in entry['messaging']:
+                        handle_messaging_event(messaging_event, page_id)
+                
+                # Handle changes (field updates)
+                if 'changes' in entry:
+                    for change in entry['changes']:
+                        handle_field_change(change, page_id)
+        
+        elif body.get('object') == 'user':
+            # Handle user events
+            for entry in body.get('entry', []):
+                user_id = entry.get('id')
+                time = entry.get('time')
+                
+                logging.info(f"Processing user event for user {user_id} at {time}")
+                
+                # Handle user field changes
+                if 'changes' in entry:
+                    for change in entry['changes']:
+                        handle_user_change(change, user_id)
+        
+        # Return 200 OK to acknowledge receipt
+        return 'EVENT_RECEIVED', 200
+        
+    except Exception as e:
+        logging.error(f"Error handling Facebook webhook event: {str(e)}")
+        return 'Internal Server Error', 500
+
+def handle_messaging_event(messaging_event, page_id):
+    """Handle individual messaging events"""
+    try:
+        sender_id = messaging_event.get('sender', {}).get('id')
+        recipient_id = messaging_event.get('recipient', {}).get('id')
+        timestamp = messaging_event.get('timestamp')
+        
+        logging.info(f"Messaging event from {sender_id} to {recipient_id} at {timestamp}")
+        
+        # Handle different types of messaging events
+        if 'message' in messaging_event:
+            message = messaging_event['message']
+            message_text = message.get('text', '')
+            logging.info(f"Received message: {message_text}")
+            
+            # TODO: Implement your message handling logic here
+            # Example: Store message, trigger automated responses, etc.
+            
+        elif 'postback' in messaging_event:
+            postback = messaging_event['postback']
+            payload = postback.get('payload', '')
+            logging.info(f"Received postback: {payload}")
+            
+            # TODO: Implement your postback handling logic here
+            
+    except Exception as e:
+        logging.error(f"Error handling messaging event: {str(e)}")
+
+def handle_field_change(change, page_id):
+    """Handle page field changes"""
+    try:
+        field = change.get('field')
+        value = change.get('value')
+        
+        logging.info(f"Page {page_id} field '{field}' changed: {value}")
+        
+        # TODO: Implement your field change handling logic here
+        # Example: Update local data, trigger notifications, etc.
+        
+    except Exception as e:
+        logging.error(f"Error handling field change: {str(e)}")
+
+def handle_user_change(change, user_id):
+    """Handle user field changes"""
+    try:
+        field = change.get('field')
+        value = change.get('value')
+        
+        logging.info(f"User {user_id} field '{field}' changed: {value}")
+        
+        # TODO: Implement your user change handling logic here
+        # Example: Update user profile, sync with local database, etc.
+        
+    except Exception as e:
+        logging.error(f"Error handling user change: {str(e)}")
+
+
+
