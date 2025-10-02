@@ -12,6 +12,8 @@ class User(db.Model):
     password = db.Column(db.String(255), nullable=True)  # Nullable for social login
     code = db.Column(db.String(255), nullable=True)  # For password reset/email verification
     facebook_id = db.Column(db.String(100), unique=True, nullable=True)
+    facebook_access_token = db.Column(db.Text, nullable=True)  # Store Facebook access token for API calls
+    facebook_token_expires = db.Column(db.DateTime, nullable=True)  # Track token expiration
     is_verified = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

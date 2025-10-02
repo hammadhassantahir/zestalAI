@@ -72,3 +72,4 @@ start_server.sh
 stop_server.sh
 
 backup/
+app/static/zestal_leads.json

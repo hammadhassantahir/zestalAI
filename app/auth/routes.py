@@ -3,6 +3,7 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 from ..extensions import db
 from ..models.user import User
 from ..services.email_service import send_verification_email, send_reset_password_email
+from ..services.facebook_service import FacebookService
 import secrets
 import requests
 import logging
@@ -117,7 +118,7 @@ def facebook_login():
         logging.info("Facebook login attempt received with token")
         
         # Verify the Facebook access token and get user info
-        fb_user_info = verify_facebook_token(access_token)
+        fb_user_info, token_expires = verify_facebook_token(access_token)
         if not fb_user_info:
             return jsonify({'error': 'Invalid Facebook access token'}), 401
         
@@ -135,10 +136,13 @@ def facebook_login():
             user = User.query.filter_by(email=email).first()
         
         if user:
-            # Update Facebook ID if not set
+            # Update Facebook ID and access token if not set
             if not user.facebook_id:
                 user.facebook_id = facebook_id
-                db.session.commit()
+            # Always update the access token and expiration
+            user.facebook_access_token = access_token
+            user.facebook_token_expires = token_expires
+            db.session.commit()
         else:
             # Create new user
             user = User(
@@ -146,6 +150,8 @@ def facebook_login():
                 last_name=last_name,
                 email=email,
                 facebook_id=facebook_id,
+                facebook_access_token=access_token,
+                facebook_token_expires=token_expires,
                 is_verified=True,  # Facebook users are pre-verified
                 code=secrets.token_urlsafe(32)
             )
@@ -236,9 +242,9 @@ def facebook_redirect():
         return jsonify({'error': 'Internal server error'}), 500
 
 def verify_facebook_token(access_token):
-    """Verify Facebook access token and return user info"""
+    """Verify Facebook access token and return user info with token expiration"""
     try:
-        # First verify the token's validity
+        # First verify the token's validity and get expiration
         debug_url = f"https://graph.facebook.com/debug_token?input_token={access_token}&access_token={access_token}"
         debug_response = requests.get(debug_url, timeout=10)
         debug_data = debug_response.json()
@@ -247,7 +253,13 @@ def verify_facebook_token(access_token):
         
         if not debug_response.ok or not debug_data.get('data', {}).get('is_valid'):
             logging.error(f"Invalid Facebook token: {debug_data}")
-            return None
+            return None, None
+            
+        # Get token expiration timestamp
+        expires_at = debug_data.get('data', {}).get('expires_at')
+        token_expires = None
+        if expires_at:
+            token_expires = datetime.fromtimestamp(expires_at)
             
         # If token is valid, get user info
         url = f"https://graph.facebook.com/me?fields=id,email,first_name,last_name&access_token={access_token}"
@@ -263,19 +275,19 @@ def verify_facebook_token(access_token):
             
             if missing_fields:
                 logging.error(f"Missing required fields from Facebook: {missing_fields}")
-                return None
+                return None, None
                 
-            return user_data
+            return user_data, token_expires
         else:
             logging.error(f"Facebook API error: {response.status_code} - {response.text}")
-            return None
+            return None, None
             
     except requests.exceptions.RequestException as e:
         logging.error(f"Error verifying Facebook token: {str(e)}")
-        return None
+        return None, None
     except Exception as e:
         logging.error(f"Unexpected error verifying Facebook token: {str(e)}")
-        return None
+        return None, None
 
 @auth_bp.route('/check-email', methods=['POST'])
 def check_email():
@@ -468,5 +480,81 @@ def handle_user_change(change, user_id):
     except Exception as e:
         logging.error(f"Error handling user change: {str(e)}")
 
+@auth_bp.route('/facebook/fetch-posts', methods=['POST'])
+@jwt_required()
+def fetch_facebook_posts():
+    """Fetch user's Facebook posts and save to database"""
+    try:
+        current_user_id = get_jwt_identity()
+        data = request.get_json() or {}
+        limit = data.get('limit', 50)  # Default to 50 posts
+        
+        logging.info(f"Fetching Facebook posts for user {current_user_id}")
+        
+        result = FacebookService.fetch_user_posts(current_user_id, limit)
+        
+        if 'error' in result:
+            return jsonify(result), 400
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logging.error(f"Error in fetch Facebook posts endpoint: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@auth_bp.route('/facebook/posts', methods=['GET'])
+@jwt_required()
+def get_facebook_posts():
+    """Get user's Facebook posts from database"""
+    try:
+        current_user_id = get_jwt_identity()
+        limit = request.args.get('limit', 20, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        logging.info(f"Getting Facebook posts for user {current_user_id}")
+        
+        result = FacebookService.get_user_posts_from_db(current_user_id, limit, offset)
+        
+        if 'error' in result:
+            return jsonify(result), 400
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logging.error(f"Error in get Facebook posts endpoint: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@auth_bp.route('/facebook/posts/<int:post_id>/fetch-comments', methods=['POST'])
+@jwt_required()
+def fetch_post_comments(post_id):
+    """Fetch comments for a specific Facebook post"""
+    try:
+        current_user_id = get_jwt_identity()
+        data = request.get_json() or {}
+        limit = data.get('limit', 25)  # Default to 25 comments
+        
+        # Verify the post belongs to the current user
+        from ..models import FacebookPost
+        post = FacebookPost.query.filter_by(id=post_id, user_id=current_user_id).first()
+        if not post:
+            return jsonify({'error': 'Post not found or unauthorized'}), 404
+        
+        # Get user's access token
+        user = User.query.get(current_user_id)
+        if not user or not user.facebook_access_token:
+            return jsonify({'error': 'Facebook access token not found'}), 400
+        
+        logging.info(f"Fetching comments for post {post_id}")
+        
+        result = FacebookService.fetch_post_comments(post_id, user.facebook_access_token, limit)
+        
+        if 'error' in result:
+            return jsonify(result), 400
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logging.error(f"Error in fetch post comments endpoint: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 
