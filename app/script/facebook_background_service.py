@@ -95,8 +95,8 @@ def cleanup_expired_tokens():
         logging.error(f"Error in cleanup_expired_tokens: {str(e)}")
 
 def main():
-    """Main function to run the background service"""
-    logging.info("Starting Facebook background service")
+    """Main function to run the background service manually"""
+    logging.info("Starting Facebook background service (manual execution)")
     
     # Fetch posts for all users
     fetch_all_user_posts()

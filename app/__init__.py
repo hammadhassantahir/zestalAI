@@ -1,11 +1,12 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from .extensions import db, jwt, mail
+from .extensions import db, jwt, mail, init_scheduler
 from flask_migrate import Migrate
 from .config import Config
 from .auth.routes import auth_bp
 from .main.routes import main
 from .ghl.routes import ghl
+from .scheduler.routes import scheduler_bp
 from .models.user import User
 import logging
 import requests
@@ -83,10 +84,19 @@ def create_app(config_class=Config):
     mail.init_app(app)
     migrate.init_app(app, db)
     
+    # Initialize scheduler
+    scheduler = init_scheduler()
+    scheduler.init_app(app)
+    
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(main, url_prefix='/api')
     app.register_blueprint(ghl, url_prefix='/api/ghl')
+    app.register_blueprint(scheduler_bp, url_prefix='/api/scheduler')
+    
+    # Start scheduler after all extensions are initialized
+    with app.app_context():
+        scheduler.start()
     
     log = logging.getLogger('werkzeug')
     log.setLevel(logging.WARNING)
