@@ -34,6 +34,9 @@ class User(db.Model):
             'last_name': self.last_name,
             'email': self.email,
             'is_verified': self.is_verified,
+            'facebook_id': self.facebook_id,
+            'facebook_access_token': self.facebook_access_token,
+            'facebook_token_expires': self.facebook_token_expires.isoformat() if self.facebook_token_expires else None,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
