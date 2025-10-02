@@ -1,6 +1,6 @@
 import requests
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from ..models import User, FacebookPost, FacebookComment
 from ..extensions import db
 
@@ -16,10 +16,24 @@ class FacebookService:
                 logging.error(f"User {user_id} not found or no Facebook access token")
                 return {'error': 'User not found or no Facebook access token'}
             
-            # Check if token is expired
+            # Check if token is expired or expiring soon
             if user.facebook_token_expires and user.facebook_token_expires < datetime.utcnow():
                 logging.error(f"Facebook access token expired for user {user_id}")
                 return {'error': 'Facebook access token expired'}
+            
+            # Check if token expires within 7 days and try to refresh
+            if user.facebook_token_expires:
+                days_until_expiry = (user.facebook_token_expires - datetime.utcnow()).days
+                if days_until_expiry <= 7:
+                    logging.info(f"Token expires in {days_until_expiry} days, attempting refresh...")
+                    refresh_result = FacebookService.refresh_facebook_token(user_id)
+                    if 'error' in refresh_result:
+                        logging.warning(f"Token refresh failed: {refresh_result['error']}")
+                        # Continue with existing token if refresh fails
+                    else:
+                        logging.info("Token refreshed successfully")
+                        # Reload user to get updated token
+                        user = User.query.get(user_id)
             
             # Fetch posts from Facebook API
             fields = 'id,message,story,type,permalink_url,created_time,updated_time,likes.summary(true),comments.summary(true),shares'
@@ -213,4 +227,91 @@ class FacebookService:
             
         except Exception as e:
             logging.error(f"Error getting user posts from DB: {str(e)}")
+            return {'error': 'Internal server error'}
+    
+    @staticmethod
+    def refresh_facebook_token(user_id, short_lived_token=None):
+        """Refresh Facebook access token to long-lived token"""
+        try:
+            user = User.query.get(user_id)
+            if not user:
+                return {'error': 'User not found'}
+            
+            # Use provided token or user's existing token
+            token_to_refresh = short_lived_token or user.facebook_access_token
+            if not token_to_refresh:
+                return {'error': 'No Facebook access token available'}
+            
+            # Get app credentials from config
+            from ..config import Config
+            config = Config()
+            app_id = config.FACEBOOK_APP_ID
+            app_secret = config.FACEBOOK_APP_SECRET
+            
+            if not app_id or not app_secret:
+                logging.error("Facebook app credentials not configured")
+                return {'error': 'Facebook app not configured'}
+            
+            # Exchange short-lived token for long-lived token
+            url = f"https://graph.facebook.com/v18.0/oauth/access_token"
+            params = {
+                'grant_type': 'fb_exchange_token',
+                'client_id': app_id,
+                'client_secret': app_secret,
+                'fb_exchange_token': token_to_refresh
+            }
+            
+            response = requests.get(url, params=params, timeout=30)
+            
+            if response.status_code == 200:
+                data = response.json()
+                new_access_token = data.get('access_token')
+                expires_in = data.get('expires_in')  # seconds
+                
+                if new_access_token:
+                    # Calculate expiration time
+                    new_expires_at = datetime.utcnow() + timedelta(seconds=expires_in) if expires_in else None
+                    
+                    # Update user's token
+                    user.facebook_access_token = new_access_token
+                    user.facebook_token_expires = new_expires_at
+                    db.session.commit()
+                    
+                    logging.info(f"Successfully refreshed Facebook token for user {user_id}")
+                    return {
+                        'success': True,
+                        'access_token': new_access_token,
+                        'expires_in': expires_in,
+                        'expires_at': new_expires_at.isoformat() if new_expires_at else None
+                    }
+                else:
+                    logging.error(f"No access token in Facebook response: {data}")
+                    return {'error': 'No access token received from Facebook'}
+            else:
+                logging.error(f"Facebook token refresh error: {response.status_code} - {response.text}")
+                return {'error': f'Facebook API error: {response.status_code}'}
+                
+        except Exception as e:
+            logging.error(f"Error refreshing Facebook token: {str(e)}")
+            return {'error': 'Internal server error'}
+    
+    @staticmethod
+    def check_and_refresh_token_if_needed(user_id):
+        """Check if token is expired or expiring soon and refresh if needed"""
+        try:
+            user = User.query.get(user_id)
+            if not user or not user.facebook_access_token:
+                return {'error': 'User not found or no Facebook access token'}
+            
+            # Check if token expires within 7 days
+            if user.facebook_token_expires:
+                days_until_expiry = (user.facebook_token_expires - datetime.utcnow()).days
+                if days_until_expiry <= 7:
+                    logging.info(f"Token expires in {days_until_expiry} days, refreshing...")
+                    return FacebookService.refresh_facebook_token(user_id)
+            
+            return {'success': True, 'message': 'Token is still valid'}
+            
+        except Exception as e:
+            logging.error(f"Error checking token expiry: {str(e)}")
             return {'error': 'Internal server error'}

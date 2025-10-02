@@ -492,15 +492,37 @@ def fetch_facebook_posts():
         
         logging.info(f"Fetching Facebook posts for user {current_user_id}")
         
+        # Add more detailed logging
+        user = User.query.get(current_user_id)
+        if user:
+            logging.info(f"User found: {user.email}, Facebook token present: {user.facebook_access_token is not None}")
+            if user.facebook_token_expires:
+                logging.info(f"Token expires at: {user.facebook_token_expires}")
+        else:
+            logging.error(f"User {current_user_id} not found")
+            return jsonify({'error': 'User not found'}), 404
+        
         result = FacebookService.fetch_user_posts(current_user_id, limit)
         
+        logging.info(f"FacebookService result: {result}")
+        
         if 'error' in result:
+            logging.info(f"Returning error response: {result}")
+            # If token is expired, return a specific error code
+            if 'expired' in result['error'].lower():
+                return jsonify({
+                    'error': 'Facebook access token expired',
+                    'error_code': 'FACEBOOK_TOKEN_EXPIRED',
+                    'message': 'Please re-authenticate with Facebook'
+                }), 401
             return jsonify(result), 400
         
         return jsonify(result), 200
         
     except Exception as e:
         logging.error(f"Error in fetch Facebook posts endpoint: {str(e)}")
+        import traceback
+        logging.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': 'Internal server error'}), 500
 
 @auth_bp.route('/facebook/posts', methods=['GET'])
@@ -523,6 +545,50 @@ def get_facebook_posts():
         
     except Exception as e:
         logging.error(f"Error in get Facebook posts endpoint: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@auth_bp.route('/facebook/refresh-token', methods=['POST'])
+@jwt_required()
+def refresh_facebook_token():
+    """Refresh Facebook access token to long-lived token"""
+    try:
+        current_user_id = get_jwt_identity()
+        data = request.get_json() or {}
+        
+        # Optionally accept a new short-lived token from the client
+        short_lived_token = data.get('access_token')
+        
+        logging.info(f"Refreshing Facebook token for user {current_user_id}")
+        
+        result = FacebookService.refresh_facebook_token(current_user_id, short_lived_token)
+        
+        if 'error' in result:
+            return jsonify(result), 400
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logging.error(f"Error in refresh Facebook token endpoint: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@auth_bp.route('/facebook/check-token', methods=['GET'])
+@jwt_required()
+def check_facebook_token():
+    """Check Facebook token status and refresh if needed"""
+    try:
+        current_user_id = get_jwt_identity()
+        
+        logging.info(f"Checking Facebook token for user {current_user_id}")
+        
+        result = FacebookService.check_and_refresh_token_if_needed(current_user_id)
+        
+        if 'error' in result:
+            return jsonify(result), 400
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logging.error(f"Error in check Facebook token endpoint: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 @auth_bp.route('/facebook/posts/<int:post_id>/fetch-comments', methods=['POST'])

@@ -34,6 +34,10 @@ class Config:
     FACEBOOK_CLIENT_SECRET = os.getenv('FACEBOOK_CLIENT_SECRET')
     FACEBOOK_OAUTH_REDIRECT_URI = os.getenv('FACEBOOK_OAUTH_REDIRECT_URI')
     
+    # Facebook App Configuration (for token refresh)
+    FACEBOOK_APP_ID = os.getenv('FACEBOOK_APP_ID', FACEBOOK_CLIENT_ID)
+    FACEBOOK_APP_SECRET = os.getenv('FACEBOOK_APP_SECRET', FACEBOOK_CLIENT_SECRET)
+    
     # Facebook Webhook Configuration
     FACEBOOK_WEBHOOK_VERIFY_TOKEN = os.getenv('FACEBOOK_WEBHOOK_VERIFY_TOKEN')
 
