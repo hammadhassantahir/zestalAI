@@ -121,7 +121,8 @@ def facebook_login():
         # Verify the Facebook access token and get user info
         fb_user_info, token_expires = verify_facebook_token(access_token)
         if not fb_user_info:
-            return jsonify({'error': 'Invalid Facebook access token'}), 401
+            logging.error("Facebook token verification failed")
+            return jsonify({'error': 'Invalid Facebook access token. Please ensure you are authorized to use this app.'}), 401
         
         facebook_id = fb_user_info['id']
         email = fb_user_info.get('email')
@@ -253,7 +254,14 @@ def verify_facebook_token(access_token):
         logging.info(f"Token debug response: {debug_data}")
         
         if not debug_response.ok or not debug_data.get('data', {}).get('is_valid'):
-            logging.error(f"Invalid Facebook token: {debug_data}")
+            error_info = debug_data.get('error', {})
+            error_message = error_info.get('message', 'Unknown error')
+            error_code = error_info.get('code', 'Unknown')
+            
+            if error_code == 100:
+                logging.error(f"Facebook app permission error: {error_message}")
+            else:
+                logging.error(f"Invalid Facebook token: {debug_data}")
             return None, None
             
         # Get token expiration timestamp

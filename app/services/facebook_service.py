@@ -36,7 +36,7 @@ class FacebookService:
                         user = User.query.get(user_id)
             
             # Fetch posts from Facebook API
-            fields = 'id,message,story,type,permalink_url,created_time,updated_time,likes.summary(true),comments.summary(true),shares'
+            fields = 'id,message,story,type,permalink_url,created_time,updated_time'
             url = f"https://graph.facebook.com/me/posts?fields={fields}&limit={limit}&access_token={user.facebook_access_token}"
             
             response = requests.get(url, timeout=30)
@@ -50,8 +50,8 @@ class FacebookService:
                     saved_post = FacebookService._save_post(user_id, post_data)
                     if saved_post:
                         saved_posts.append(saved_post)
-                        # Fetch comments for this post
-                        FacebookService.fetch_post_comments(saved_post.id, user.facebook_access_token)
+                        # TODO: Fetch comments for this post (commented out to avoid API issues)
+                        # FacebookService.fetch_post_comments(saved_post.id, user.facebook_access_token)
                 
                 return {
                     'success': True,
@@ -82,9 +82,14 @@ class FacebookService:
                 existing_post.post_type = post_data.get('type')
                 existing_post.permalink_url = post_data.get('permalink_url')
                 existing_post.updated_time = FacebookService._parse_facebook_date(post_data.get('updated_time'))
-                existing_post.likes_count = post_data.get('likes', {}).get('summary', {}).get('total_count', 0)
-                existing_post.comments_count = post_data.get('comments', {}).get('summary', {}).get('total_count', 0)
-                existing_post.shares_count = post_data.get('shares', {}).get('count', 0)
+                # Handle engagement data safely
+                likes_data = post_data.get('likes', {})
+                comments_data = post_data.get('comments', {})
+                shares_data = post_data.get('shares', {})
+                
+                existing_post.likes_count = likes_data.get('summary', {}).get('total_count', 0) if likes_data else 0
+                existing_post.comments_count = comments_data.get('summary', {}).get('total_count', 0) if comments_data else 0
+                existing_post.shares_count = shares_data.get('count', 0) if shares_data else 0
                 existing_post.last_updated = datetime.utcnow()
                 
                 db.session.commit()
@@ -100,9 +105,9 @@ class FacebookService:
                     permalink_url=post_data.get('permalink_url'),
                     created_time=FacebookService._parse_facebook_date(post_data.get('created_time')),
                     updated_time=FacebookService._parse_facebook_date(post_data.get('updated_time')),
-                    likes_count=post_data.get('likes', {}).get('summary', {}).get('total_count', 0),
-                    comments_count=post_data.get('comments', {}).get('summary', {}).get('total_count', 0),
-                    shares_count=post_data.get('shares', {}).get('count', 0)
+                    likes_count=0,  # Will be fetched separately if needed
+                    comments_count=0,  # Will be fetched separately if needed
+                    shares_count=0  # Will be fetched separately if needed
                 )
                 
                 db.session.add(new_post)
