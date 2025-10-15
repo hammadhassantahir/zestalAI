@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 from .extensions import db, jwt, mail, init_scheduler
 from flask_migrate import Migrate
@@ -72,7 +72,22 @@ def create_app(config_class=Config):
         
         return response
     
-    # Error handler for all exceptions
+    # Handle Socket.IO requests directly on the main app (not blueprint)
+    @app.before_request
+    def handle_socketio_requests():
+        """Handle Socket.IO requests before they hit route handlers"""
+        if request.path.startswith('/socket.io'):
+            return Response(status=200)
+    
+    # Error handler for 404 errors
+    @app.errorhandler(404)
+    def handle_404(error):
+        # Log the requested URL to help identify what's causing 404s
+        requested_url = request.url
+        logging.warning(f"404 Not Found: {request.method} {requested_url} from {request.remote_addr}")
+        return jsonify({'error': 'Not Found'}), 404
+    
+    # Error handler for all other exceptions
     @app.errorhandler(Exception)
     def handle_error(error):
         logging.error(f"Unhandled error: {str(error)}")
@@ -93,6 +108,10 @@ def create_app(config_class=Config):
     app.register_blueprint(main, url_prefix='/api')
     app.register_blueprint(ghl, url_prefix='/api/ghl')
     app.register_blueprint(scheduler_bp, url_prefix='/api/scheduler')
+    
+    # Register Facebook sync blueprint
+    from .facebook import facebook_bp
+    app.register_blueprint(facebook_bp, url_prefix='/api/facebook')
     
     # Start scheduler after all extensions are initialized
     with app.app_context():

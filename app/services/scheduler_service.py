@@ -63,7 +63,8 @@ class SchedulerService:
         # Job 1: Fetch Facebook posts every hour
         self.scheduler.add_job(
             func=self._fetch_all_user_posts,
-            trigger=IntervalTrigger(hours=1),
+            # trigger=IntervalTrigger(hours=5), 
+            trigger=IntervalTrigger(minutes=5),
             id='fetch_facebook_posts',
             name='Fetch Facebook Posts',
             replace_existing=True,
@@ -95,7 +96,7 @@ class SchedulerService:
         """Fetch posts for all users with valid Facebook tokens"""
         with self.app.app_context():
             try:
-                logging.info("Starting scheduled Facebook posts fetch")
+                logging.info("*****************************Starting scheduled Facebook posts fetch")
                 
                 # Get all users with Facebook access tokens that haven't expired
                 users = User.query.filter(
@@ -216,6 +217,30 @@ class SchedulerService:
                 logging.error(f"Error resuming job {job_id}: {str(e)}")
                 return False
         return False
+    
+    def run_job_async(self, func, *args, **kwargs):
+        """
+        Run a job asynchronously in the background
+        This adds a one-time job that runs immediately
+        """
+        if self.scheduler:
+            try:
+                job = self.scheduler.add_job(
+                    func=func,
+                    args=args,
+                    kwargs=kwargs,
+                    trigger='date',  # Run once
+                    run_date=datetime.utcnow(),
+                    misfire_grace_time=None,
+                    coalesce=False,
+                    max_instances=1
+                )
+                logging.info(f"Background job scheduled: {job.id}")
+                return job.id
+            except Exception as e:
+                logging.error(f"Error scheduling background job: {str(e)}")
+                return None
+        return None
 
 # Global scheduler instance
 scheduler_service = SchedulerService()

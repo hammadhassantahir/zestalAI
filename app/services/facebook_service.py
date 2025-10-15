@@ -53,10 +53,15 @@ class FacebookService:
                         # TODO: Fetch comments for this post (commented out to avoid API issues)
                         # FacebookService.fetch_post_comments(saved_post.id, user.facebook_access_token)
                 
+                # Get pagination info
+                paging = data.get('paging', {})
+                next_url = paging.get('next')
+                
                 return {
                     'success': True,
                     'posts_count': len(saved_posts),
-                    'posts': [post.to_dict() for post in saved_posts]
+                    'posts': [post.to_dict() for post in saved_posts],
+                    'next_url': next_url
                 }
             else:
                 logging.error(f"Facebook API error: {response.status_code} - {response.text}")
@@ -64,6 +69,51 @@ class FacebookService:
                 
         except Exception as e:
             logging.error(f"Error fetching user posts: {str(e)}")
+            return {'error': 'Internal server error'}
+    
+    @staticmethod
+    def _fetch_posts_from_url(url):
+        """Fetch posts from a specific URL (for pagination)"""
+        try:
+            response = requests.get(url, timeout=30)
+            
+            if response.status_code == 200:
+                data = response.json()
+                posts_data = data.get('data', [])
+                
+                # Extract user_id from the first post or URL
+                # This is a bit tricky with pagination URLs
+                # We'll need to handle this carefully
+                
+                saved_posts = []
+                for post_data in posts_data:
+                    # Extract user_id from post_id (format: user_id_post_id)
+                    post_id = post_data.get('id', '')
+                    if '_' in post_id:
+                        user_facebook_id = post_id.split('_')[0]
+                        # Find user by facebook_id
+                        user = User.query.filter_by(facebook_id=user_facebook_id).first()
+                        if user:
+                            saved_post = FacebookService._save_post(user.id, post_data)
+                            if saved_post:
+                                saved_posts.append(saved_post)
+                
+                # Get pagination info
+                paging = data.get('paging', {})
+                next_url = paging.get('next')
+                
+                return {
+                    'success': True,
+                    'posts_count': len(saved_posts),
+                    'posts': [post.to_dict() for post in saved_posts],
+                    'next_url': next_url
+                }
+            else:
+                logging.error(f"Facebook API error: {response.status_code} - {response.text}")
+                return {'error': f'Facebook API error: {response.status_code}'}
+                
+        except Exception as e:
+            logging.error(f"Error fetching posts from URL: {str(e)}")
             return {'error': 'Internal server error'}
     
     @staticmethod

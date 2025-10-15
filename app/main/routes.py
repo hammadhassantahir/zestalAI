@@ -9,6 +9,7 @@ from functools import wraps
 
 main = Blueprint('main', __name__)
 
+
 def get_ghl_client():
     """Get an instance of GoHighLevel V2 API client."""
     return GoHighLevelV2API(
@@ -131,13 +132,44 @@ def facebook_login_page():
     return render_template('facebook_login.html', 
                          facebook_client_id=current_app.config['FACEBOOK_CLIENT_ID'])
 
+@main.route('/favicon.ico')
+def favicon():
+    """Handle favicon requests to prevent 404 logs"""
+    return Response(status=204)
+
 @main.route('/socket.io/')
 def handle_socketio():
     """Handle socket.io requests to prevent 404 logs"""
     return Response(status=200)
 
+@main.route('/socket.io')
+def handle_socketio_no_slash():
+    """Handle socket.io requests without trailing slash"""
+    return Response(status=200)
+
+@main.route('/robots.txt')
+def robots_txt():
+    """Handle robots.txt requests"""
+    return Response(status=204)
+
+@main.route('/sitemap.xml')
+def sitemap_xml():
+    """Handle sitemap.xml requests"""
+    return Response(status=204)
+
 @main.route('/')
 def index():
+
+    from app.script.scrapper import runScrapper
+    # comments = runScrapper("https://www.facebook.com/2309878802795671/posts/2319112888538929")
+
+    # Preson Links
+    comments = runScrapper("https://www.facebook.com/preston.king.37/posts/pfbid02qWZyS3ebBqcttUphfCdEypzFjgEowc71xDm2UzBVR5s5XKcnaA2jpoYG78M2sm9Pl")
+    # comments = runScrapper("https://www.facebook.com/preston.king.37/posts/pfbid02UEpftWQdPuZsXfWdr8Faz8YmPAHskFnQDHRcB7iTo64JBJH5oBZvMsXWR38ZTqDSl")
+    # comments = runScrapper("https://www.facebook.com/preston.king.37/posts/pfbid0pjMhrbjA7RxuhX9gTiqCGr3uauRUM8gPWCeT8FYSdfXRctLZJ164GaEuxkXNoECil")
+    # comments = runScrapper("https://www.facebook.com/preston.king.37/posts/pfbid068G3hbha47xrRSBNt6TrHqvWtQrKEmtyW6Cz4hA5cv4YTPLjBpWWpdN16hvHpVCJl")
+    print("Scrapper completed")
+    return jsonify(comments)
     return "Welcome to ZestalAI Auth API"
 
 
