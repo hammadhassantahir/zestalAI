@@ -64,7 +64,7 @@ class SchedulerService:
         self.scheduler.add_job(
             func=self._fetch_all_user_posts,
             # trigger=IntervalTrigger(hours=5), 
-            trigger=IntervalTrigger(minutes=5),
+            trigger=IntervalTrigger(minutes=59),
             id='fetch_facebook_posts',
             name='Fetch Facebook Posts',
             replace_existing=True,
