@@ -37,7 +37,9 @@ class FacebookService:
             
             # Fetch posts from Facebook API
             fields = 'id,message,story,type,permalink_url,created_time,updated_time'
-            url = f"https://graph.facebook.com/me/posts?fields={fields}&limit={limit}&access_token={user.facebook_access_token}"
+            # url = f"https://graph.facebook.com/me/posts?fields={fields}&limit={limit}&access_token={user.facebook_access_token}"
+            url = f"https://graph.facebook.com/me?fields=posts.limit({limit}){fields}&access_token={user.facebook_access_token}"
+            print(url)
             
             response = requests.get(url, timeout=30)
             
