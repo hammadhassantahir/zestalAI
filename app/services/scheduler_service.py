@@ -30,6 +30,9 @@ class SchedulerService:
         """Initialize the scheduler with Flask app context"""
         self.app = app
         
+        self.taskTimeMinutes = app.config['FACEBOOK_TASK_TIME_MINUTES']
+        self.limit = app.config['FACEBOOK_POST_LIMIT']
+        print(f"Scheduler service initialized with limit: {self.limit} and task time minutes: {self.taskTimeMinutes}")
         # Configure scheduler with memory job store (simpler setup)
         self.scheduler = BackgroundScheduler(timezone='UTC')
         
@@ -59,12 +62,12 @@ class SchedulerService:
     
     def add_facebook_jobs(self):
         """Add Facebook-related scheduled jobs"""
-        
+
         # Job 1: Fetch Facebook posts every hour
         self.scheduler.add_job(
             func=self._fetch_all_user_posts,
             # trigger=IntervalTrigger(hours=5), 
-            trigger=IntervalTrigger(minutes=59),
+            trigger=IntervalTrigger(minutes=self.taskTimeMinutes),
             id='fetch_facebook_posts',
             name='Fetch Facebook Posts',
             replace_existing=True,
@@ -112,7 +115,7 @@ class SchedulerService:
                         logging.info(f"Fetching posts for user {user.id} ({user.email})")
                         
                         # Fetch posts with a reasonable limit
-                        result = FacebookService.fetch_user_posts(user.id, limit=25)
+                        result = FacebookService.fetch_user_posts(user.id, limit=self.limit)
                         
                         if 'error' in result:
                             logging.error(f"Error fetching posts for user {user.id}: {result['error']}")

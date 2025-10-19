@@ -1,8 +1,10 @@
 import requests
+from flask import current_app
 import logging
 from datetime import datetime, timedelta
 from ..models import User, FacebookPost, FacebookComment
 from ..extensions import db
+from urllib.parse import urlparse, parse_qs
 
 class FacebookService:
     """Service for fetching and managing Facebook posts and comments"""
@@ -48,6 +50,7 @@ class FacebookService:
                 posts_data = data.get('data', [])
                 
                 saved_posts = []
+                print(f"*************** Posts data Count: {len(posts_data)}")
                 for post_data in posts_data:
                     saved_post = FacebookService._save_post(user_id, post_data)
                     if saved_post:
@@ -58,7 +61,19 @@ class FacebookService:
                 # Get pagination info
                 paging = data.get('paging', {})
                 next_url = paging.get('next')
+                next_paging_token = None
+                try:
+                    # Parse the URL
+                    parsed = urlparse(next_url)
+                    # Get query parameters as dict
+                    params = parse_qs(parsed.query)
+                    # Extract the paging token
+                    next_paging_token = params.get('__paging_token', [None])[0]
+                except Exception as e:
+                    logging.error(f"Error parsing next URL: {str(e)}")
+
                 
+                print(f"Next paging token: {next_paging_token}")
                 return {
                     'success': True,
                     'posts_count': len(saved_posts),

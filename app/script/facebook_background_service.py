@@ -16,6 +16,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')
 sys.path.insert(0, project_root)
 
 from app import create_app
+from flask import current_app
 from app.models import User
 from app.services.facebook_service import FacebookService
 from app.extensions import db
@@ -49,7 +50,8 @@ def fetch_all_user_posts():
                     logging.info(f"Fetching posts for user {user.id} ({user.email})")
                     
                     # Fetch posts with a reasonable limit
-                    result = FacebookService.fetch_user_posts(user.id, limit=25)
+                    limit = current_app.config['FACEBOOK_POST_LIMIT']
+                    result = FacebookService.fetch_user_posts(user.id, limit=limit)
                     
                     if 'error' in result:
                         logging.error(f"Error fetching posts for user {user.id}: {result['error']}")

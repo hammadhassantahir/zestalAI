@@ -50,3 +50,6 @@ class Config:
     GHL_CLIENT_ID = os.getenv('GHL_CLIENT_ID')
     GHL_CLIENT_SECRET = os.getenv('GHL_CLIENT_SECRET')
     GHL_REDIRECT_URI = os.getenv('GHL_REDIRECT_URI')
+
+    FACEBOOK_TASK_TIME_MINUTES = int(os.getenv('FACEBOOK_TASK_TIME_MINUTES', 59))
+    FACEBOOK_POST_LIMIT = int(os.getenv('FACEBOOK_POST_LIMIT', 50))
