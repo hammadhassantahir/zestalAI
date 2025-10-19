@@ -44,10 +44,14 @@ class FacebookService:
             print(url)
             
             response = requests.get(url, timeout=100)
+            if user_id == 4:
+                print(f"*************** Response: {response.text}")
             # print(f"*************** Response: {response.text}")
             print(f"*************** Response status code: {response.status_code}")
             if response.status_code == 200:
                 data = response.json()
+                if user_id == 4:
+                    print(f"*************** Data: {data}")
                 posts_data = data.get('data', [])
                 
                 saved_posts = []
