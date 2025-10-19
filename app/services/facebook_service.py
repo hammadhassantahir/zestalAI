@@ -43,8 +43,9 @@ class FacebookService:
             url = f"https://graph.facebook.com/me?fields=posts.limit({limit}){fields}&access_token={user.facebook_access_token}"
             print(url)
             
-            response = requests.get(url, timeout=30)
-            
+            response = requests.get(url, timeout=100)
+            print(f"*************** Response: {response.text}")
+            print(f"*************** Response status code: {response.status_code}")
             if response.status_code == 200:
                 data = response.json()
                 posts_data = data.get('data', [])
