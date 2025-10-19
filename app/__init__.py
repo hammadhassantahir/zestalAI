@@ -114,12 +114,14 @@ def create_app(config_class=Config):
     app.register_blueprint(facebook_bp, url_prefix='/api/facebook')
     
     # Start scheduler after all extensions are initialized
-    # Only start scheduler if not in reloader process (prevents duplicate executions in debug mode)
-    from werkzeug.serving import is_running_from_reloader
-    if not is_running_from_reloader() or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+    # Only start scheduler in the main process (not in reloader process)
+    # This prevents duplicate scheduler instances in debug mode
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
         with app.app_context():
             scheduler.start()
             logging.info("Scheduler started successfully")
+    else:
+        logging.info("Skipping scheduler start in reloader process")
     
     log = logging.getLogger('werkzeug')
     log.setLevel(logging.WARNING)
