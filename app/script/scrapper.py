@@ -46,10 +46,10 @@ def scrape_post_comments(posts):
             # ---- EXTRACT POST TEXT ----
             try:
                 post_text = driver.find_element(By.XPATH, '//div[@data-ad-rendering-role="story_message"]').text
-                print(post_text)
+                # print(post_text)
             except:
                 post_text = "Post text not found."
-            print("📝 Post text:", post_text)
+            # print("📝 Post text:", post_text)
 
             # ---- LOAD MORE COMMENTS (optional) ----
             for i in range(10):  # adjust this number for more comments
@@ -63,12 +63,14 @@ def scrape_post_comments(posts):
                 # ---- GET MAIN COMMENTS ----
                 # Only get top-level comments (not replies) - they have "Comment by" but not nested in other comment divs
                 comment_blocks = driver.find_elements(By.XPATH, '//div[contains(@aria-label, "Comment by") and @role="article"]')
-                print(f"Found {len(comment_blocks)} main comments")
+                # print(f"Found {len(comment_blocks)} main comments")
                 
                 # Get all reply blocks separately for matching later
                 all_replies_on_page = driver.find_elements(By.XPATH, '//div[contains(@aria-label, "Reply by") and @role="article"]')
-                print(f"Found {len(all_replies_on_page)} total reply comments on the page")
+                # print(f"Found {len(all_replies_on_page)} total reply comments on the page")
                 
+
+                print(f"Post text:{post_text} Found {len(comment_blocks)} main comments and {len(all_replies_on_page)} reply comments on the page")
                 # Create a map to store comment ID to DB ID mapping
                 comment_id_to_db_id = {}
                 comment_name_to_db_id = {}
@@ -217,7 +219,7 @@ def scrape_post_comments(posts):
                         if not reply_blocks and comment_data.get("name"):
                             reply_blocks = comment.find_elements(By.XPATH, f'.//div[contains(@aria-label, "Reply by") and contains(@aria-label, "to {comment_data["name"]}")]')
                         
-                        print(f"Found {len(reply_blocks)} replies for comment {comment_data['comment_id']}")
+                        # print(f"Found {len(reply_blocks)} replies for comment {comment_data['comment_id']}")
                         
                         for reply in reply_blocks:
                             reply_data = {
@@ -340,17 +342,17 @@ def scrape_post_comments(posts):
                                     )
                                     db.session.add(new_reply)
                                     db.session.commit()
-                                    print(f"✅ Saved reply: {reply_data['comment'][:50]}...")
+                                    # print(f"✅ Saved reply: {reply_data['comment'][:50]}...")
                     except Exception as e:
                         logging.error(f"Error getting replies for comment {comment_data.get('comment_id')}: {e}")
                         continue
                 
                 # ---- PROCESS ALL REPLIES FOUND ON PAGE (Alternative Method) ----
-                print(f"\n🔄 Processing {len(all_replies_on_page)} replies using page-level matching...")
+                # print(f"\n🔄 Processing {len(all_replies_on_page)} replies using page-level matching...")
                 for reply_element in all_replies_on_page:
                     try:
                         reply_aria_label = reply_element.get_attribute('aria-label')
-                        print(f"Processing reply: {reply_aria_label[:100]}...")
+                        # print(f"Processing reply: {reply_aria_label[:100]}...")
                         
                         reply_data = {
                             "name": None,
@@ -369,7 +371,7 @@ def scrape_post_comments(posts):
                         if " to " in reply_aria_label and "'s comment" in reply_aria_label:
                             parent_part = reply_aria_label.split(" to ")[1].split("'s comment")[0]
                             reply_data["parent_name"] = parent_part.strip()
-                            print(f"  Parent name from aria-label: {reply_data['parent_name']}")
+                            # print(f"  Parent name from aria-label: {reply_data['parent_name']}")
                         
                         # Extract all reply data using same methods as main comments
                         # 1️⃣ Get commenter name
@@ -456,7 +458,7 @@ def scrape_post_comments(posts):
                         parent_db_id = None
                         if reply_data["parent_name"] in comment_name_to_db_id:
                             parent_db_id = comment_name_to_db_id[reply_data["parent_name"]]
-                            print(f"  ✅ Matched to parent DB ID: {parent_db_id}")
+                            # print(f"  ✅ Matched to parent DB ID: {parent_db_id}")
                         
                         # Save or update reply comment with parent reference
                         if reply_data["comment_id"] and parent_db_id:
@@ -472,7 +474,7 @@ def scrape_post_comments(posts):
                                 existing_reply.parent_comment_id = parent_db_id
                                 existing_reply.fetched_at = datetime.utcnow()
                                 db.session.commit()
-                                print(f"  ✅ Updated reply: {reply_data['comment'][:50]}...")
+                                # print(f"  ✅ Updated reply: {reply_data['comment'][:50]}...")
                             else:
                                 new_reply = FacebookComment(
                                     post_id=post.id,
@@ -490,12 +492,12 @@ def scrape_post_comments(posts):
                                 )
                                 db.session.add(new_reply)
                                 db.session.commit()
-                                print(f"  ✅ Saved new reply: {reply_data['comment'][:50]}...")
-                        else:
-                            if not reply_data["comment_id"]:
-                                print(f"  ⚠️  Skipping reply - no comment ID found")
-                            if not parent_db_id:
-                                print(f"  ⚠️  Skipping reply - parent not found for: {reply_data['parent_name']}")
+                                # print(f"  ✅ Saved new reply: {reply_data['comment'][:50]}...")
+                        # else:
+                        #     if not reply_data["comment_id"]:
+                        #         print(f"  ⚠️  Skipping reply - no comment ID found")
+                        #     if not parent_db_id:
+                        #         print(f"  ⚠️  Skipping reply - parent not found for: {reply_data['parent_name']}")
                     
                     except Exception as e:
                         logging.error(f"Error processing page-level reply: {e}")
