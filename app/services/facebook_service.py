@@ -52,7 +52,7 @@ class FacebookService:
                 data = response.json()
                 if user_id == 4:
                     print(f"*************** Data: {data}")
-                posts_data = data.get('data', [])
+                posts_data = data.get('posts', {}).get('data', [])
                 
                 saved_posts = []
                 print(f"*************** Posts data Count: {len(posts_data)}")
@@ -64,7 +64,7 @@ class FacebookService:
                         # FacebookService.fetch_post_comments(saved_post.id, user.facebook_access_token)
                 
                 # Get pagination info
-                paging = data.get('paging', {})
+                paging = data.get('posts', {}).get('paging', {})
                 next_url = paging.get('next')
                 next_paging_token = None
                 try:
