@@ -38,7 +38,7 @@ class FacebookService:
                         user = User.query.get(user_id)
             
             # Fetch posts from Facebook API
-            fields = '{id,message,story,type,permalink_url,created_time,updated_time}'
+            fields = '{id,message,story,type,permalink_url,created_time,updated_time,privacy}'
             # url = f"https://graph.facebook.com/me/posts?fields={fields}&limit={limit}&access_token={user.facebook_access_token}"
             url = f"https://graph.facebook.com/me?fields=posts.limit({limit}){fields}&access_token={user.facebook_access_token}"
             print(url)
@@ -146,11 +146,13 @@ class FacebookService:
             
             # Check if post already exists
             existing_post = FacebookPost.query.filter_by(facebook_post_id=facebook_post_id).first()
-            
+            privacy = post_data.get('privacy', {})
             if existing_post:
                 # Update existing post
                 existing_post.message = post_data.get('message')
                 existing_post.story = post_data.get('story')
+                existing_post.privacy_visibility = privacy.get('value') if privacy else None
+
                 existing_post.post_type = post_data.get('type')
                 existing_post.permalink_url = post_data.get('permalink_url')
                 existing_post.updated_time = FacebookService._parse_facebook_date(post_data.get('updated_time'))
@@ -175,6 +177,7 @@ class FacebookService:
                     story=post_data.get('story'),
                     post_type=post_data.get('type'),
                     permalink_url=post_data.get('permalink_url'),
+                    privacy_visibility = privacy.get('value') if privacy else None,
                     created_time=FacebookService._parse_facebook_date(post_data.get('created_time')),
                     updated_time=FacebookService._parse_facebook_date(post_data.get('updated_time')),
                     likes_count=0,  # Will be fetched separately if needed

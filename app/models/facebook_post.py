@@ -16,6 +16,7 @@ class FacebookPost(db.Model):
     likes_count = db.Column(db.Integer, default=0)
     comments_count = db.Column(db.Integer, default=0)
     shares_count = db.Column(db.Integer, default=0)
+    privacy_visibility = db.Column(db.String(50), nullable=True)  # public, friends, limited, custom
     
     # Metadata
     fetched_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -38,6 +39,7 @@ class FacebookPost(db.Model):
             'likes_count': self.likes_count,
             'comments_count': self.comments_count,
             'shares_count': self.shares_count,
+            'privacy_visibility': self.privacy_visibility,
             'fetched_at': self.fetched_at.isoformat(),
             'last_updated': self.last_updated.isoformat()
         }
