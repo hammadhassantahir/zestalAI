@@ -159,18 +159,54 @@ def sitemap_xml():
 
 @main.route('/')
 def index():
-
-    from app.script.scrapper import runScrapper
-    # comments = runScrapper("https://www.facebook.com/2309878802795671/posts/2319112888538929")
-
-    # Preson Links
-    comments = runScrapper("https://www.facebook.com/preston.king.37/posts/pfbid02qWZyS3ebBqcttUphfCdEypzFjgEowc71xDm2UzBVR5s5XKcnaA2jpoYG78M2sm9Pl")
-    # comments = runScrapper("https://www.facebook.com/preston.king.37/posts/pfbid02UEpftWQdPuZsXfWdr8Faz8YmPAHskFnQDHRcB7iTo64JBJH5oBZvMsXWR38ZTqDSl")
-    # comments = runScrapper("https://www.facebook.com/preston.king.37/posts/pfbid0pjMhrbjA7RxuhX9gTiqCGr3uauRUM8gPWCeT8FYSdfXRctLZJ164GaEuxkXNoECil")
-    # comments = runScrapper("https://www.facebook.com/preston.king.37/posts/pfbid068G3hbha47xrRSBNt6TrHqvWtQrKEmtyW6Cz4hA5cv4YTPLjBpWWpdN16hvHpVCJl")
-    print("Scrapper completed")
-    return jsonify(comments)
     return "Welcome to ZestalAI Auth API"
+
+
+@main.route('/scrape')
+def trigger_scrape_comments():
+    """
+    Endpoint to trigger comment scraping as a background task.
+    Returns immediately while scraping continues in background.
+    """
+    from app.script.scrapper import scrape_post_comments
+    from app.models import User, FacebookPost
+    import logging
+    import threading
+    from flask import current_app
+    
+    # Get reference to the Flask app BEFORE starting the thread
+    app = current_app._get_current_object()
+    
+    def scrape_in_background(app):
+        """Background task to scrape comments for all users"""
+        # Create a new application context for the background thread
+        with app.app_context():
+            try:
+                logging.info("*****************************Starting scheduled Scrape post Comments")
+                users = User.query.filter(User.is_verified == True).all()
+                logging.info(f"Found {len(users)} users with valid Facebook tokens")
+                for user in users:
+                    try:
+                        logging.info(f"Scraping post comments for user {user.id} ({user.email})")
+                        posts = FacebookPost.query.filter_by(user_id=user.id, privacy_visibility='EVERYONE').all()
+                        result = scrape_post_comments(posts)
+                    except Exception as e:
+                        logging.error(f"Error scraping post comments for user {user.id}: {str(e)}")
+                        continue
+                
+                logging.info(f"Scheduled Scrape post Comments completed.")
+                
+            except Exception as e:
+                logging.error(f"Error in scheduled scrape_post_comments: {str(e)}")
+    
+    # Start scraping in a background thread, passing the app object
+    thread = threading.Thread(target=scrape_in_background, args=(app,), daemon=True)
+    thread.start()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Comment scraping started in background. Check logs for progress.'
+    }), 202
 
 
 # GoHighLevel V2 API Routes

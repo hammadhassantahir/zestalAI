@@ -50,17 +50,21 @@ class FacebookComment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     post_id = db.Column(db.Integer, db.ForeignKey('facebook_posts.id'), nullable=False)
     facebook_comment_id = db.Column(db.String(255), unique=True, nullable=False)
+    parent_comment_id = db.Column(db.Integer, db.ForeignKey('facebook_comments.id'), nullable=True)  # For replies/sub-comments
     message = db.Column(db.Text, nullable=True)
     from_id = db.Column(db.String(100), nullable=True)  # ID of the person who commented
     from_name = db.Column(db.String(255), nullable=True)  # Name of the person who commented
-    created_time = db.Column(db.DateTime, nullable=True)
     likes_count = db.Column(db.Integer, default=0)
-    
+    comment_date = db.Column(db.String(255), nullable=True)
+    post_url = db.Column(db.String(255), nullable=True)
+    has_liked = db.Column(db.Boolean, default=False)
+    language = db.Column(db.String(255), nullable=True)
     # Metadata
     fetched_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Relationship
+    # Relationships
     post = db.relationship('FacebookPost', backref='comments')
+    parent = db.relationship('FacebookComment', remote_side=[id], backref='replies')
     
     def to_dict(self):
         return {

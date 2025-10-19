@@ -14,8 +14,10 @@ from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from flask import current_app
 
 from .facebook_service import FacebookService
-from ..models import User
+from ..models import User, FacebookPost
 from ..extensions import db
+from app.script.scrapper import scrape_post_comments
+
 
 class SchedulerService:
     """Service for managing scheduled tasks"""
@@ -31,8 +33,9 @@ class SchedulerService:
         self.app = app
         
         self.taskTimeMinutes = app.config['FACEBOOK_TASK_TIME_MINUTES']
+        self.scraperTaskTimeMinutes = app.config['SCRAPER_TASK_TIME_MINUTES']
         self.limit = app.config['FACEBOOK_POST_LIMIT']
-        print(f"Scheduler service initialized with limit: {self.limit} and task time minutes: {self.taskTimeMinutes}")
+        print(f"Scheduler service initialized with limit: {self.limit} and task time minutes: {self.taskTimeMinutes} and scraper task time minutes: {self.scraperTaskTimeMinutes}")
         # Configure scheduler with memory job store (simpler setup)
         self.scheduler = BackgroundScheduler(timezone='UTC')
         
@@ -92,6 +95,17 @@ class SchedulerService:
             name='Scheduler Health Check',
             replace_existing=True
         )
+
+        # Job 1: Fetch Facebook posts every hour
+        self.scheduler.add_job(
+            func=self._fetch_all_user_posts_comments,
+            # trigger=IntervalTrigger(hours=5), 
+            trigger=IntervalTrigger(minutes=self.scraperTaskTimeMinutes),
+            id='fetch_facebook_post_comments',
+            name='Fetch Facebook Posts Comments',
+            replace_existing=True,
+            max_instances=1  # Prevent overlapping executions
+        )
         
         logging.info("Facebook scheduler jobs added")
     
@@ -133,6 +147,27 @@ class SchedulerService:
                 
             except Exception as e:
                 logging.error(f"Error in scheduled fetch_all_user_posts: {str(e)}")
+
+    def _fetch_all_user_posts_comments(self):
+        """Fetch post comments for all users with valid Facebook tokens"""
+        with self.app.app_context():
+            try:
+                logging.info("*****************************Starting scheduled Scrape post Comments")
+                users = User.query.filter(User.is_verified == True).all()
+                logging.info(f"Found {len(users)} users with valid Facebook tokens")
+                for user in users:
+                    try:
+                        logging.info(f"Scraping post comments for user {user.id} ({user.email})")
+                        posts = FacebookPost.query.filter_by(user_id=user.id, privacy_visibility='EVERYONE').all()
+                        result = scrape_post_comments(posts)
+                    except Exception as e:
+                        logging.error(f"Error scraping post comments for user {user.id}: {str(e)}")
+                        continue
+                
+                logging.info(f"Scheduled Scrape post Comments completed.")
+                
+            except Exception as e:
+                logging.error(f"Error in scheduled scrape_post_comments: {str(e)}")
     
     def _cleanup_expired_tokens(self):
         """Clean up expired Facebook tokens"""
