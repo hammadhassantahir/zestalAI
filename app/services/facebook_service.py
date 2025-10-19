@@ -44,7 +44,7 @@ class FacebookService:
             print(url)
             
             response = requests.get(url, timeout=100)
-            print(f"*************** Response: {response.text}")
+            # print(f"*************** Response: {response.text}")
             print(f"*************** Response status code: {response.status_code}")
             if response.status_code == 200:
                 data = response.json()
