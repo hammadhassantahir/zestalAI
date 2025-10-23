@@ -188,7 +188,8 @@ def scrape_post_comments(posts):
                             post_url=comment_data["profile_url"] if comment_data["profile_url"] else 'N/A',
                             has_liked=True if comment_data["has_liked"] else False,
                             language=comment_data["language"] if comment_data["language"] else None,
-                            fetched_at=datetime.utcnow()
+                            fetched_at=datetime.utcnow(),
+                            user_id=post.user_id
                         )
                         db.session.add(new_comment)
                         db.session.commit()
@@ -338,7 +339,8 @@ def scrape_post_comments(posts):
                                         post_url=reply_data["profile_url"] if reply_data["profile_url"] else 'N/A',
                                         has_liked=True if reply_data["has_liked"] else False,
                                         language=reply_data["language"] if reply_data["language"] else None,
-                                        fetched_at=datetime.utcnow()
+                                        fetched_at=datetime.utcnow(),
+                                        user_id=post.user_id
                                     )
                                     db.session.add(new_reply)
                                     db.session.commit()
@@ -488,7 +490,8 @@ def scrape_post_comments(posts):
                                     post_url=reply_data["profile_url"] if reply_data["profile_url"] else 'N/A',
                                     has_liked=True if reply_data["has_liked"] else False,
                                     language=reply_data["language"] if reply_data["language"] else None,
-                                    fetched_at=datetime.utcnow()
+                                    fetched_at=datetime.utcnow(),
+                                    user_id=post.user_id
                                 )
                                 db.session.add(new_reply)
                                 db.session.commit()

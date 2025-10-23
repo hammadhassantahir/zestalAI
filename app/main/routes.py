@@ -5,6 +5,10 @@ import requests
 import json
 import os
 from functools import wraps
+from app.extensions import db
+from app.models.user import User
+import logging
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 
 main = Blueprint('main', __name__)
@@ -34,6 +38,30 @@ def ghlRedirects():
     print('***************************************************')
     print(data)
     return Response(status=200)
+
+
+@main.route('/setcode', methods=['POST', 'OPTIONS'])
+@jwt_required()
+def setcode():
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200 
+    try:
+        data = request.get_json()
+        current_user = get_jwt_identity()
+        if not data.get('email') or not data.get('code'):
+            return jsonify({'error': 'Code is required'}), 400
+        
+        user = User.query.filter_by(email=current_user.email).first()
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        user.code = data['code']
+        db.session.commit()
+        
+        return jsonify({'message': 'Code set successfully'}), 200
+    except Exception as e:
+        logging.error(f"Error in setcode: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @main.route('/zestal/webhook', methods=['POST'])
@@ -341,3 +369,12 @@ def ghl_dashboard():
 #         # print("New Contact:", new_contact)
 #     except RateLimitError as e:
 #         print("Hit API rate limit:", e)   
+
+
+@main.route('/test')
+def test():
+    from app.services.ai_service import generateCommentsReply
+    userIds = [1, 4, 8]
+    result = generateCommentsReply(userIds)
+    return jsonify(result)
+

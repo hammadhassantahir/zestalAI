@@ -78,7 +78,7 @@ def signup():
             last_name=data['last_name'],
             email=data['email'],
             is_verified=True,
-            code=secrets.token_urlsafe(32)
+            # code=secrets.token_urlsafe(32)
         )
         user.set_password(data['password'])
         
@@ -155,7 +155,7 @@ def facebook_login():
                 facebook_access_token=access_token,
                 facebook_token_expires=token_expires,
                 is_verified=True,  # Facebook users are pre-verified
-                code=secrets.token_urlsafe(32)
+                # code=secrets.token_urlsafe(32)
             )
             db.session.add(user)
             db.session.commit()

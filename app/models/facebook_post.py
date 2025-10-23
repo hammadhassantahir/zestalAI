@@ -59,12 +59,14 @@ class FacebookComment(db.Model):
     post_url = db.Column(db.String(255), nullable=True)
     has_liked = db.Column(db.Boolean, default=False)
     language = db.Column(db.String(255), nullable=True)
-    # Metadata
+    self_comment = db.Column(db.Boolean, default=False)
     fetched_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+    ai_reply = db.Column(db.Text, nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     # Relationships
     post = db.relationship('FacebookPost', backref='comments')
     parent = db.relationship('FacebookComment', remote_side=[id], backref='replies')
+    user = db.relationship('User', backref='facebook_comments')
     
     def to_dict(self):
         return {
@@ -74,7 +76,15 @@ class FacebookComment(db.Model):
             'message': self.message,
             'from_id': self.from_id,
             'from_name': self.from_name,
-            'created_time': self.created_time.isoformat() if self.created_time else None,
+            'comment_date': self.comment_date,
             'likes_count': self.likes_count,
-            'fetched_at': self.fetched_at.isoformat()
+            'parent_comment_id': self.parent_comment_id,
+            'post_url': self.post_url,
+            'has_liked': self.has_liked,
+            'language': self.language,
+            'self_comment': self.self_comment,
+            'ai_reply': self.ai_reply,
+            'user_id': self.user_id,
+            'fetched_at': self.fetched_at.isoformat(),
+            'last_updated': self.last_updated.isoformat()
         }

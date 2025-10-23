@@ -18,6 +18,12 @@ class Config:
     # CORS Configuration
     CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:3001').split(',')
     
+    #OPENAI Settings
+    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+    OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo')
+    OPENAI_TEMPERATURE = os.getenv('OPENAI_TEMPERATURE', 0.7)
+    OPENAI_MAX_TOKENS = os.getenv('OPENAI_MAX_TOKENS', 1000)
+
     # JWT Configuration
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)

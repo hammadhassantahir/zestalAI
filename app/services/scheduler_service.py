@@ -12,8 +12,8 @@ from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from flask import current_app
-
 from .facebook_service import FacebookService
+from .ai_service import generateCommentsReply
 from ..models import User, FacebookPost
 from ..extensions import db
 from app.script.scrapper import scrape_post_comments
@@ -66,11 +66,12 @@ class SchedulerService:
     def add_facebook_jobs(self):
         """Add Facebook-related scheduled jobs"""
 
-        # Job 1: Fetch Facebook posts every hour
+        # Job 1: Fetch Facebook posts daily at 3 AM
         self.scheduler.add_job(
             func=self._fetch_all_user_posts,
-            # trigger=IntervalTrigger(hours=5), 
-            trigger=IntervalTrigger(minutes=self.taskTimeMinutes),
+            trigger=CronTrigger(hour=3, minute=0),
+            # trigger=IntervalTrigger(hours=5),
+            # trigger=IntervalTrigger(minutes=self.taskTimeMinutes),
             id='fetch_facebook_posts',
             name='Fetch Facebook Posts',
             replace_existing=True,
@@ -96,13 +97,24 @@ class SchedulerService:
             replace_existing=True
         )
 
-        # Job 1: Fetch Facebook posts every hour
+        # Job 1: Fetch Facebook posts daily at 5 AM
         self.scheduler.add_job(
             func=self._fetch_all_user_posts_comments,
+            trigger=CronTrigger(hour=5, minute=0),
             # trigger=IntervalTrigger(hours=5), 
-            trigger=IntervalTrigger(minutes=self.scraperTaskTimeMinutes),
+            # trigger=IntervalTrigger(minutes=self.scraperTaskTimeMinutes),
             id='fetch_facebook_post_comments',
             name='Fetch Facebook Posts Comments',
+            replace_existing=True,
+            max_instances=1  # Prevent overlapping executions
+        )
+        
+        # Job 2: Generate comments after 2 hours of fetching comments
+        self.scheduler.add_job(
+            func=self._generate_comments_replies,
+            trigger=IntervalTrigger(hours=2),
+            id='generate_comments_replies',
+            name='Generate Comments Replies',
             replace_existing=True,
             max_instances=1  # Prevent overlapping executions
         )
@@ -168,6 +180,17 @@ class SchedulerService:
                 
             except Exception as e:
                 logging.error(f"Error in scheduled scrape_post_comments: {str(e)}")
+    
+    def _generate_comments_replies(self):
+        """Generate comments replies for all users with valid Facebook tokens"""
+        with self.app.app_context():
+            try:
+                users = User.query.filter(User.is_verified == True).all()
+                userIds = [user.id for user in users]
+                generateCommentsReply(userIds)
+                logging.info(f"Scheduled Generate comments replies completed.")
+            except Exception as e:
+                logging.error(f"Error in scheduled generate_comments_replies: {str(e)}")
     
     def _cleanup_expired_tokens(self):
         """Clean up expired Facebook tokens"""
