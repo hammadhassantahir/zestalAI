@@ -40,6 +40,14 @@ def ghlRedirects():
     return Response(status=200)
 
 
+@main.route('/profiles/<int:userId>', methods=['GET', 'OPTIONS'])
+@jwt_required()
+def get_user_profile(userId):
+    user = User.query.filter_by(id=userId).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    return jsonify(user.to_dict()), 200
+
 @main.route('/setcode', methods=['POST', 'OPTIONS'])
 @jwt_required()
 def setcode():

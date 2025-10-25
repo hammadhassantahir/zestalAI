@@ -29,18 +29,16 @@ def login():
         
         user = User.query.filter_by(email=data['email']).first()
         logging.info(f"User found: {user is not None}")
-        
         if not user:
-            return jsonify({'error': 'Invalid email or password', 'details': 'User not found'}), 401
+            return jsonify({'error': 'Invalid email or password', 'details': 'User not found'}), 403
         
         if not user.check_password(data['password']):
-            return jsonify({'error': 'Invalid email or password', 'details': 'Wrong password'}), 401
+            return jsonify({'error': 'Invalid email or password', 'details': 'Wrong password'}), 403
         
         if not user.is_verified:
             return jsonify({'error': 'Please verify your email first'}), 403
         
         access_token = create_access_token(identity=str(user.id))
-        
         response_data = {
             'access_token': access_token,
             'user': user.to_dict(),
@@ -64,7 +62,7 @@ def signup():
         logging.info(f"Signup request data: {data}")
         
         # Validate required fields
-        required_fields = ['first_name', 'last_name', 'email', 'password']
+        required_fields = ['firstName', 'lastName', 'code', 'email', 'password']
         if not all(field in data for field in required_fields):
             return jsonify({'error': 'Missing required fields'}), 400
         
@@ -74,8 +72,9 @@ def signup():
         
         # Create new user
         user = User(
-            first_name=data['first_name'],
-            last_name=data['last_name'],
+            first_name=data['firstName'],
+            last_name=data['lastName'],
+            code=data['code'],
             email=data['email'],
             is_verified=True,
             # code=secrets.token_urlsafe(32)

@@ -16,7 +16,7 @@ class Config:
     FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
     
     # CORS Configuration
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:3001').split(',')
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:3001,http://localhost:8081,http://localhost:8080').split(',')
     
     #OPENAI Settings
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
