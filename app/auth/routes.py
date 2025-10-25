@@ -136,6 +136,9 @@ def facebook_login():
         if not user:
             user = User.query.filter_by(email=email).first()
         
+        if user and not user.is_verified:
+            return jsonify({"valid": False, "error": "User not verified"}), 403
+        
         if user:
             # Update Facebook ID and access token if not set
             if not user.facebook_id:
