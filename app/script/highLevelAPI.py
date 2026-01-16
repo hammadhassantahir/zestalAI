@@ -72,6 +72,13 @@ class LeadConnectorClient:
         loc_id = location_id or self.location_id
         return self._request("GET", f"/locations/{loc_id}")
 
+    def create_location(self, data: dict):
+        try:
+            response = self._request("POST", "/locations/", data=data)
+            return response
+        except Exception as e:
+            raise Exception(f"Error creating location: {str(e)}")
+
     def get_company_id_from_location(self, location_id: str = None):
         location = self.get_location(location_id)
         if "companyId" not in location:

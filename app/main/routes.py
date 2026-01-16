@@ -48,28 +48,125 @@ def get_user_profile(userId):
         return jsonify({'error': 'User not found'}), 404
     return jsonify(user.to_dict()), 200
 
-@main.route('/setcode', methods=['POST', 'OPTIONS'])
+
+@main.route('/social/posts', methods=['GET'])
 @jwt_required()
-def setcode():
-    if request.method == 'OPTIONS':
-        return jsonify({}), 200 
+def get_social_posts():
+    """
+    Get all social media posts with comments and AI replies for the authenticated user.
+    Returns posts with nested comments and their replies.
+    """
     try:
-        data = request.get_json()
-        current_user = get_jwt_identity()
-        if not data.get('email') or not data.get('code'):
-            return jsonify({'error': 'Code is required'}), 400
+        # Get the current user from JWT token
+        current_user_id = get_jwt_identity()
+        user = User.query.filter_by(id=current_user_id).first()
         
-        user = User.query.filter_by(email=current_user.email).first()
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        user.code = data['code']
-        db.session.commit()
+        # Import models here to avoid circular imports
+        from app.models.facebook_post import FacebookPost, FacebookComment
+        from datetime import datetime, timedelta
         
-        return jsonify({'message': 'Code set successfully'}), 200
+        # Get all posts for the user, ordered by created_time descending (newest first)
+        posts = FacebookPost.query.filter_by(user_id=current_user_id).order_by(
+            FacebookPost.created_time.desc()
+        ).all()
+        
+        result = []
+        
+        for post in posts:
+            # Get all top-level comments (comments without parent)
+            top_level_comments = FacebookComment.query.filter_by(
+                post_id=post.id,
+                parent_comment_id=None
+            ).order_by(FacebookComment.fetched_at.desc()).all()
+            
+            comments_data = []
+            has_new_comments = False
+            has_new_sub_comments = False
+            
+            # Check if comment is "new" (within last 7 days for example)
+            def is_new(fetched_at):
+                if not fetched_at:
+                    return False
+                seven_days_ago = datetime.utcnow() - timedelta(days=7)
+                return fetched_at > seven_days_ago
+            
+            for comment in top_level_comments:
+                # Get replies for this comment
+                replies = FacebookComment.query.filter_by(
+                    parent_comment_id=comment.id
+                ).order_by(FacebookComment.fetched_at.asc()).all()
+                
+                replies_data = []
+                for reply in replies:
+                    reply_is_new = is_new(reply.fetched_at)
+                    if reply_is_new:
+                        has_new_sub_comments = True
+                    
+                    replies_data.append({
+                        'id': f'r{reply.id}',
+                        'author': reply.from_name if reply.from_name else 'Unknown',
+                        'content': reply.message if reply.message else '',
+                        'timestamp': reply.fetched_at.isoformat() if reply.fetched_at else datetime.utcnow().isoformat(),
+                        'isNew': reply_is_new,
+                        'ai_reply': reply.ai_reply,
+                        'likes': reply.likes_count if reply.likes_count else 0,
+                        'self_comment': reply.self_comment
+                    })
+                
+                comment_is_new = is_new(comment.fetched_at)
+                if comment_is_new:
+                    has_new_comments = True
+                
+                comments_data.append({
+                    'id': f'c{comment.id}',
+                    'author': comment.from_name if comment.from_name else 'Unknown',
+                    'content': comment.message if comment.message else '',
+                    'timestamp': comment.fetched_at.isoformat() if comment.fetched_at else datetime.utcnow().isoformat(),
+                    'isNew': comment_is_new,
+                    'replies': replies_data,
+                    'ai_reply': comment.ai_reply,
+                    'likes': comment.likes_count if comment.likes_count else 0,
+                    'self_comment': comment.self_comment
+                })
+            
+            # Calculate total engagements
+            engagements = (post.likes_count or 0) + (post.comments_count or 0) + (post.shares_count or 0)
+            
+            # Build post data
+            post_data = {
+                'id': str(post.id),
+                'facebook_post_id': post.facebook_post_id,
+                'name': post.message[:50] + '...' if post.message and len(post.message) > 50 else (post.message or post.story or 'Untitled Post'),
+                'content': post.message or post.story or '',
+                'timestamp': post.created_time.isoformat() if post.created_time else post.fetched_at.isoformat(),
+                'comments': comments_data,
+                'likes': post.likes_count or 0,
+                'shares': post.shares_count or 0,
+                'engagements': engagements,
+                'hasNewComments': has_new_comments,
+                'hasNewSubComments': has_new_sub_comments,
+                'post_type': post.post_type,
+                'permalink_url': post.permalink_url,
+                'privacy_visibility': post.privacy_visibility
+            }
+            
+            result.append(post_data)
+        
+        return jsonify(result), 200
+        
     except Exception as e:
-        logging.error(f"Error in setcode: {str(e)}")
-        return jsonify({'error': 'Internal server error'}), 500
+        logging.error(f"Error fetching social posts: {str(e)}")
+        return jsonify({
+            'error': 'Failed to fetch social posts',
+            'details': str(e)
+        }), 500
+
+
+
+
 
 
 @main.route('/zestal/webhook', methods=['POST'])
@@ -95,6 +192,11 @@ def zestal_webhook():
     print('***************************************************')
     print(data)
     return Response(status=200)
+
+
+
+
+
 
 
 @main.route('/zestal/loglead', methods=['POST'])
@@ -381,8 +483,15 @@ def ghl_dashboard():
 
 @main.route('/test')
 def test():
-    from app.services.ai_service import generateCommentsReply
-    userIds = [1, 4, 8]
-    result = generateCommentsReply(userIds)
+    print('SOME TESTTTTTTTTTSSSSSSSS')
+    result = {
+        "success": True,
+        "message": "Test endpoint hit successfully"
+    }
+    
+
+    # from app.services.ai_service import generateCommentsReply
+    # userIds = [1, 4, 8]
+    # result = generateCommentsReply(userIds)
     return jsonify(result)
 

@@ -15,6 +15,7 @@ class User(db.Model):
     facebook_access_token = db.Column(db.Text, nullable=True)  # Store Facebook access token for API calls
     facebook_token_expires = db.Column(db.DateTime, nullable=True)  # Track token expiration
     is_verified = db.Column(db.Boolean, default=False)
+    ghl_location_id = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -38,5 +39,7 @@ class User(db.Model):
             'facebook_access_token': self.facebook_access_token,
             'facebook_token_expires': self.facebook_token_expires.isoformat() if self.facebook_token_expires else None,
             'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
+            'updated_at': self.updated_at.isoformat(),
+            'code': self.code,
+            'ghl_location_id': self.ghl_location_id,
         }

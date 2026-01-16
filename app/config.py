@@ -51,6 +51,7 @@ class Config:
     GHL_ACCESS_TOKEN = os.getenv('GHL_ACCESS_TOKEN')
     GHL_LOCATION_ID = os.getenv('GHL_LOCATION_ID')
     GHL_COMPANY_ID = os.getenv('GHL_COMPANY_ID')
+    GHL_SNAPSHOT_ID = os.getenv('GHL_SNAPSHOT_ID')
 
     GHL_API_KEY = os.getenv('GHL_API_KEY')
     GHL_CLIENT_ID = os.getenv('GHL_CLIENT_ID')

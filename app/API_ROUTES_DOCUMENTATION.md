@@ -203,9 +203,68 @@ This document provides a complete list of all API endpoints in the ZestalAI appl
 
 ### User Management
 
+**GET `/api/profiles/<user_id>`** - Get user profile by ID
+- Headers: `Authorization: Bearer <token>`
+- Response: `{ "id": 1, "first_name": "John", "last_name": "Doe", "email": "...", ... }`
+
 **POST `/api/setcode`** - Set user verification code
 - Headers: `Authorization: Bearer <token>`
 - Request: `{ "email": "user@example.com", "code": "verification_code" }`
+
+### Social Media
+
+**GET `/api/social/posts`** - Get all social media posts with comments and AI replies
+- Headers: `Authorization: Bearer <token>`
+- Response: Array of posts with nested comments and replies
+- Response Format:
+```json
+[
+  {
+    "id": "1",
+    "facebook_post_id": "123456789",
+    "name": "Post title or excerpt",
+    "content": "Full post content",
+    "timestamp": "2025-10-09T14:30:00Z",
+    "comments": [
+      {
+        "id": "c1",
+        "author": "User Name",
+        "content": "Comment text",
+        "timestamp": "2025-10-09T15:00:00Z",
+        "isNew": true,
+        "likes": 10,
+        "self_comment": false,
+        "ai_reply": "AI generated reply text",
+        "replies": [
+          {
+            "id": "r1",
+            "author": "Another User",
+            "content": "Reply text",
+            "timestamp": "2025-10-09T15:30:00Z",
+            "isNew": false,
+            "likes": 5,
+            "self_comment": true,
+            "ai_reply": null
+          }
+        ]
+      }
+    ],
+    "likes": 142,
+    "shares": 23,
+    "engagements": 187,
+    "hasNewComments": true,
+    "hasNewSubComments": false,
+    "post_type": "status",
+    "permalink_url": "https://facebook.com/...",
+    "privacy_visibility": "EVERYONE"
+  }
+]
+```
+- Notes:
+  - Comments marked as "new" if created within last 7 days
+  - `engagements` = likes + comments + shares
+  - Includes nested replies with AI-generated responses
+  - Posts ordered by creation time (newest first)
 
 ### Webhooks
 
@@ -286,4 +345,4 @@ Authorization: Bearer <your_jwt_token>
 ---
 
 ## Last Updated
-2024-01-15
+2025-10-30

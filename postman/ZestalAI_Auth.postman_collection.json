@@ -114,6 +114,97 @@
           }
         }
       ]
+    },
+    {
+      "name": "Social Media",
+      "item": [
+        {
+          "name": "Get Social Posts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "description": "JWT token from login"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/social/posts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "social", "posts"]
+            },
+            "description": "Get all social media posts with comments and AI replies for the authenticated user. Returns posts with nested comments and their replies, including indicators for new comments and sub-comments."
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/social/posts",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "social", "posts"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": \"1\",\n    \"facebook_post_id\": \"123456789\",\n    \"name\": \"Summer Sale Announcement\",\n    \"content\": \"Exciting news! Our summer collection is now 30% off...\",\n    \"timestamp\": \"2025-10-09T14:30:00Z\",\n    \"comments\": [\n      {\n        \"id\": \"c1\",\n        \"author\": \"Sarah Johnson\",\n        \"content\": \"This is amazing! When does the sale end?\",\n        \"timestamp\": \"2025-10-09T15:00:00Z\",\n        \"isNew\": true,\n        \"replies\": [\n          {\n            \"id\": \"r1\",\n            \"author\": \"Brand Team\",\n            \"content\": \"The sale ends next Friday!\",\n            \"timestamp\": \"2025-10-09T15:30:00Z\",\n            \"isNew\": true,\n            \"ai_reply\": \"Thank you for your interest!\",\n            \"likes\": 5,\n            \"self_comment\": false\n          }\n        ],\n        \"ai_reply\": null,\n        \"likes\": 10,\n        \"self_comment\": false\n      }\n    ],\n    \"likes\": 142,\n    \"shares\": 23,\n    \"engagements\": 187,\n    \"hasNewComments\": true,\n    \"hasNewSubComments\": true,\n    \"post_type\": \"status\",\n    \"permalink_url\": \"https://facebook.com/post/123\",\n    \"privacy_visibility\": \"EVERYONE\"\n  }\n]"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "User Profile",
+      "item": [
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "description": "JWT token from login"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/profiles/:userId",
+              "host": ["{{base_url}}"],
+              "path": ["api", "profiles", ":userId"],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "1",
+                  "description": "User ID"
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }

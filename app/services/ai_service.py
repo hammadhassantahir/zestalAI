@@ -43,7 +43,7 @@ def generateCommentsReply(userIds, limit=25):
         total_comments = len(allComments)
         processed_count = 0
         chunk_number = 1
-        # remainingComments = []
+        remainingComments = []
         if total_comments > 0:
             for i in range(0, total_comments, limit):
                 chunk_size = min(limit, total_comments - i)
@@ -55,14 +55,19 @@ def generateCommentsReply(userIds, limit=25):
                     remaining['user_id'] = comment.user_id
                     remaining['user_code'] = comment.user.code
                     remaining['post_text'] = comment.post.message
-                    processed_count += 1
-                    generatereply(remaining)
-                    # remainingComments.append(remaining)
+                    if comment.user.code is not None:
+                        processed_count += 1
+                        remainingComments.append(remaining)
+                    else:
+                        logger.info(f"User {comment.user_id} has no code, skipping comment {comment.id}")
+                        # continue
+                generatereply(remainingComments)
+                remainingComments = []
                 chunk_number += 1
-        print(f"\nTotal processed: {processed_count} comments in {chunk_number - 1} chunks oftotal comments {len(allComments)}")
+        # print(f"\nTotal processed: {processed_count} comments in {chunk_number - 1} chunks oftotal comments {len(allComments)}")
         return True
     except Exception as e:
-        logger.error(f"Error generating comments replies: {str(e)}")
+        # logger.error(f"Error generating comments replies: {str(e)}")
         return False
     finally:
         reset_llm_instance()
@@ -79,7 +84,7 @@ def generatereply(commentsList):
             For each comment, create a personalized reply that:
             1. Responds appropriately to the comment content
             2. Is in the same language as the comment
-            3. Includes a call-to-action with the user's unique link: www.form.zestal.pro/{{user_code}}
+            3. Includes a call-to-action with the user's unique link: http://form.zestal.pro/{{user_code}}
             4. Is engaging and relevant to the post content
             
             The comments are:
@@ -100,6 +105,7 @@ def generatereply(commentsList):
             
             Make sure each reply is personalized based on the comment and post content, and include the user's unique link in each reply.
         """
+        # print(f"Default instructions: {default_instructions}")
         response = llm.invoke(default_instructions)
         if hasattr(response, 'content'):
             result = response.content

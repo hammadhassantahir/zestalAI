@@ -1,13 +1,16 @@
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from ..extensions import db
-from ..models.user import User
-from ..services.email_service import send_verification_email, send_reset_password_email
-from ..services.facebook_service import FacebookService
-import secrets
+from app.extensions import db
+from app.models.user import User
+from app.models.facebook_post import FacebookPost
+from app.services.facebook_service import FacebookService
 import requests
 import logging
+import threading
 from datetime import datetime
+from app.script.highLevelAPI import LeadConnectorClient
+from app.script.scrapper import scrape_post_comments
+from app.services.ai_service import generateCommentsReply
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -70,6 +73,29 @@ def signup():
         if User.query.filter_by(email=data['email']).first():
             return jsonify({'error': 'Email already registered'}), 409
         
+        locationId = None
+        try:
+            client = LeadConnectorClient(
+                access_token=current_app.config['GHL_ACCESS_TOKEN'],
+                location_id=current_app.config['GHL_LOCATION_ID']
+            )
+            locationData = {
+                "name": data['firstName']+' '+data['lastName'],
+                "companyId": str(current_app.config['GHL_COMPANY_ID']),
+                "prospectInfo": {
+                    "firstName":data['firstName'],
+                    "lastName": data['lastName'],
+                    "email": data['email']
+                },
+                "snapshotId": str(current_app.config['GHL_SNAPSHOT_ID'])
+            }
+            responce = client.create_location(locationData)
+            locationId = responce["id"]
+            print('**** LOCATION CREATED ON GHL : ', locationId)
+        except Exception as e:
+            logging.error(f"Error Creating Location / Sub Account : {str(e)}")
+            return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+       
         # Create new user
         user = User(
             first_name=data['firstName'],
@@ -77,6 +103,7 @@ def signup():
             code=data['code'],
             email=data['email'],
             is_verified=True,
+            ghl_location_id=locationId,
             # code=secrets.token_urlsafe(32)
         )
         user.set_password(data['password'])
@@ -95,6 +122,26 @@ def signup():
     except Exception as e:
         logging.error(f"Error in signup: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
+
+def run_quick_service_background(app, userId):
+    """Background task to run quick service for new user"""
+    with app.app_context():
+        try:
+            logging.info(f"Starting quick service in background for user {userId}")
+            result = FacebookService.fetch_user_posts(userId, limit=5)
+            if 'error' in result:
+                logging.error(f"Error fetching posts for user {userId}: {result['error']}")
+
+            logging.info(f"Scraping post comments for user {userId}")
+            posts = FacebookPost.query.filter_by(user_id=userId, privacy_visibility='EVERYONE').all()
+            scraperResult = scrape_post_comments(posts)
+            
+            logging.info(f"Generating comments replies for user {userId}")
+            generateCommentsReply([userId])
+            
+            print(f'*********** Quick Service Completed for user {userId}')
+        except Exception as e:
+            logging.error(f"Error in background quick service for user {userId}: {str(e)}")
 
 @auth_bp.route('/facebook/login', methods=['POST', 'OPTIONS'])
 def facebook_login():
@@ -148,6 +195,29 @@ def facebook_login():
             user.facebook_token_expires = token_expires
             db.session.commit()
         else:
+            locationId = None
+            try:
+                client = LeadConnectorClient(
+                    access_token=current_app.config['GHL_ACCESS_TOKEN'],
+                    location_id=current_app.config['GHL_LOCATION_ID']
+                )
+                locationData = {
+                    "name": first_name+' '+last_name,
+                    "companyId": str(current_app.config['GHL_COMPANY_ID']),
+                    "prospectInfo": {
+                        "firstName":first_name,
+                        "lastName": last_name,
+                        "email": email
+                    },
+                    "snapshotId": str(current_app.config['GHL_SNAPSHOT_ID'])
+                }
+                responce = client.create_location(locationData)
+                locationId = responce["id"]
+                print('**** LOCATION CREATED ON GHL : ', locationId)
+            except Exception as e:
+                logging.error(f"Error Creating Location / Sub Account : {str(e)}")
+                # return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+
             # Create new user
             user = User(
                 first_name=first_name,
@@ -157,11 +227,18 @@ def facebook_login():
                 facebook_access_token=access_token,
                 facebook_token_expires=token_expires,
                 is_verified=True,  # Facebook users are pre-verified
+                ghl_location_id=locationId,
                 # code=secrets.token_urlsafe(32)
             )
             db.session.add(user)
             db.session.commit()
             logging.info(f"New Facebook user created: {email}")
+
+            # Run runQuickService in background thread
+            app = current_app._get_current_object()
+            thread = threading.Thread(target=run_quick_service_background, args=(app, user.id), daemon=True)
+            thread.start()
+            logging.info(f"Quick service started in background for user {user.id}")
         
         # Create JWT access token
         access_token = create_access_token(identity=str(user.id))
@@ -178,6 +255,31 @@ def facebook_login():
     except Exception as e:
         logging.error(f"Error in Facebook login: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
+
+@auth_bp.route('/setcode', methods=['POST', 'OPTIONS'])
+@jwt_required()
+def setcode():
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200 
+    try:
+        data = request.get_json()
+        user_id = get_jwt_identity()
+        
+        if not data.get('code'):
+            return jsonify({'error': 'Code is required'}), 400
+        
+        user = User.query.filter_by(id=int(user_id)).first()
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        user.code = data['code']
+        db.session.commit()
+        
+        return jsonify({'message': 'Code set successfully'}), 200
+    except Exception as e:
+        logging.error(f"Error in setcode: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 
 @auth_bp.route('/facebook/callback', methods=['GET'])
 def facebook_callback():
@@ -634,4 +736,19 @@ def fetch_post_comments(post_id):
         logging.error(f"Error in fetch post comments endpoint: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
+
+@auth_bp.route('/test')
+def test():
+    print('SOME AUTH TESTTTTTTTTTSSSSSSSS')
+    result = {
+        "success": True,
+        "message": "Test endpoint hit successfully"
+    }
+    # app = current_app._get_current_object()
+    # thread = threading.Thread(target=run_quick_service_background, args=(app, 2), daemon=True)
+    # thread.start()
+    generateCommentsReply([2,3])
+    logging.info(f"Quick service started in background for user 2")    
+
+    return jsonify(result)
 

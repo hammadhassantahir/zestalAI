@@ -74,6 +74,8 @@ Quick reference of all API endpoints organized by module.
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
 | GET | `/api/` | Welcome message | No |
+| GET | `/api/profiles/<userId>` | Get user profile | Yes |
+| GET | `/api/social/posts` | Get posts with comments & AI replies | Yes |
 | GET | `/api/ghl/auth` | Get GHL auth URL | No |
 | GET | `/api/ghlcallback` | GHL OAuth callback | No |
 | GET | `/api/ghlRedirects` | Handle GHL redirects | No |
@@ -104,10 +106,10 @@ Quick reference of all API endpoints organized by module.
 - Authentication: 14 endpoints
 - Facebook: 6 endpoints
 - GoHighLevel: 21 endpoints
-- Main: 14 endpoints
+- Main: 16 endpoints
 - Scheduler: 4 endpoints
 
-**Total: 59 API endpoints**
+**Total: 61 API endpoints**
 
 ---
 
