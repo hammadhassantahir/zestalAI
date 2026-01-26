@@ -13,6 +13,28 @@ logger = logging.getLogger(__name__)
 _llm_instance = None
 
 
+def clean_json_response(response_text):
+    import re
+    
+    # Remove markdown code blocks (```json ... ``` or ``` ... ```)
+    # This regex handles both ```json and plain ``` markers
+    code_block_pattern = r'```(?:json)?\s*([\s\S]*?)\s*```'
+    match = re.search(code_block_pattern, response_text)
+    
+    if match:
+        return match.group(1).strip()
+    
+    # If no code blocks, try to find JSON array directly
+    # Look for content starting with [ and ending with ]
+    json_pattern = r'\[[\s\S]*\]'
+    match = re.search(json_pattern, response_text)
+    
+    if match:
+        return match.group(0).strip()
+    
+    return response_text.strip()
+
+
 def get_llm_instance():
     """Get or create a singleton LLM instance for reuse."""
     global _llm_instance
@@ -32,7 +54,7 @@ def get_llm_instance():
     
     return _llm_instance
 
-def generateCommentsReply(userIds, limit=25):
+def generateCommentsReply(userIds, limit=10):
     try:
         allComments = FacebookComment.query.filter(
             FacebookComment.user_id.in_(userIds), 
@@ -111,6 +133,7 @@ def generatereply(commentsList):
             result = response.content
         else:
             result = str(response)
+        result = clean_json_response(result)
         try:
             parsed_result = json.loads(result)
             for reply in parsed_result:

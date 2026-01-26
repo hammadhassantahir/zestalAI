@@ -68,6 +68,7 @@ vhost
 notes
 newServer
 .cursor/
+.vscode/
 start_server.sh
 stop_server.sh
 

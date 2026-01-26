@@ -12,3 +12,5 @@ bcrypt==4.0.1
 python-facebook-api==0.20.1
 email-validator==2.0.0.post2
 APScheduler==3.10.4
+langchain-openai
+openai
