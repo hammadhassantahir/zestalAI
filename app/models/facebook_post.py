@@ -21,6 +21,7 @@ class FacebookPost(db.Model):
     # Metadata
     fetched_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_viewed = db.Column(db.Boolean, default=False)  # Track if user has seen the post
     
     # Relationship
     user = db.relationship('User', backref='facebook_posts')
@@ -41,7 +42,8 @@ class FacebookPost(db.Model):
             'shares_count': self.shares_count,
             'privacy_visibility': self.privacy_visibility,
             'fetched_at': self.fetched_at.isoformat(),
-            'last_updated': self.last_updated.isoformat()
+            'last_updated': self.last_updated.isoformat(),
+            'is_viewed': self.is_viewed
         }
 
 class FacebookComment(db.Model):
@@ -63,6 +65,7 @@ class FacebookComment(db.Model):
     fetched_at = db.Column(db.DateTime, default=datetime.utcnow)
     ai_reply = db.Column(db.Text, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    is_new = db.Column(db.Boolean, default=True)  # Track if comment is new (unread)
     # Relationships
     post = db.relationship('FacebookPost', backref='comments')
     parent = db.relationship('FacebookComment', remote_side=[id], backref='replies')
@@ -86,5 +89,6 @@ class FacebookComment(db.Model):
             'ai_reply': self.ai_reply,
             'user_id': self.user_id,
             'fetched_at': self.fetched_at.isoformat(),
-            'last_updated': self.last_updated.isoformat()
+            'last_updated': self.last_updated.isoformat(),
+            'is_new': self.is_new
         }

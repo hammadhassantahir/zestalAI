@@ -151,3 +151,38 @@ def reset_llm_instance():
     global _llm_instance
     _llm_instance = None
 
+
+def generate_single_reply(comment_id, comment_text, post_text, user_code):
+    try:
+        llm = get_llm_instance()
+        
+        prompt = f"""
+            You are a helpful AI assistant that generates personalized replies to Facebook comments.
+            
+            Generate a personalized reply to this comment that:
+            1. Responds appropriately to the comment content
+            2. Is in the same language as the comment
+            3. Includes a call-to-action with the user's unique link: http://form.zestal.pro/{user_code}
+            4. Is engaging and relevant to the post content
+            
+            Original Post: {post_text}
+            
+            Comment: {comment_text}
+            
+            Return ONLY the reply text, nothing else. No JSON, no formatting, just the reply.
+        """
+        
+        response = llm.invoke(prompt)
+        
+        if hasattr(response, 'content'):
+            result = response.content
+        else:
+            result = str(response)
+        
+        return result.strip()
+        
+    except Exception as e:
+        logger.error(f"Error generating single reply for comment {comment_id}: {str(e)}")
+        return None
+    finally:
+        reset_llm_instance()

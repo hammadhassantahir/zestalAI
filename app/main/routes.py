@@ -101,7 +101,9 @@ def get_social_posts():
                 
                 replies_data = []
                 for reply in replies:
-                    reply_is_new = is_new(reply.fetched_at)
+                    db_is_new = reply.is_new if reply.is_new is not None else False
+                    reply_is_new = db_is_new and is_new(reply.fetched_at)
+                    
                     if reply_is_new:
                         has_new_sub_comments = True
                     
@@ -116,7 +118,9 @@ def get_social_posts():
                         'self_comment': reply.self_comment
                     })
                 
-                comment_is_new = is_new(comment.fetched_at)
+                db_is_new_comment = comment.is_new if comment.is_new is not None else False
+                comment_is_new = db_is_new_comment and is_new(comment.fetched_at)
+                
                 if comment_is_new:
                     has_new_comments = True
                 
@@ -165,6 +169,155 @@ def get_social_posts():
         }), 500
 
 
+
+@main.route('/social/sync', methods=['POST'])
+@jwt_required()
+def sync_social_media():
+    try:
+        current_user_id = get_jwt_identity()
+        
+        from app.services.facebook_service import FacebookService
+        from app.models.facebook_post import FacebookPost
+        from app.script.scrapper import scrape_post_comments
+        import threading
+        
+        logging.info(f"Manual social sync triggered for user {current_user_id}")
+        
+        result = FacebookService.fetch_user_posts(current_user_id, limit=20)
+        
+        if 'error' in result:
+            logging.error(f"Error during social sync posts fetch: {result['error']}")
+            return jsonify(result), 400
+            
+        posts_count = result.get('posts_count', 0)
+        
+        def run_scraper_background(app, user_id):
+            with app.app_context():
+                try:
+                    logging.info(f"Starting background scraper for user {user_id}")
+                    # Fetch recent posts to scrape
+                    posts = FacebookPost.query.filter_by(user_id=user_id, privacy_visibility='EVERYONE')\
+                                            .order_by(FacebookPost.created_time.desc())\
+                                            .limit(10)\
+                                            .all()
+                    
+                    if posts:
+                        logging.info(f"Scraping comments for {len(posts)} posts")
+                        scrape_post_comments(posts)
+                        logging.info("Background scraping completed")
+                    else:
+                        logging.info("No public posts found to scrape")
+                        
+                except Exception as e:
+                    logging.error(f"Error in background scraper: {str(e)}")
+
+        # Start thread
+        app = current_app._get_current_object()
+        thread = threading.Thread(target=run_scraper_background, args=(app, current_user_id))
+        thread.start()
+            
+        return jsonify({
+            'success': True,
+            'message': 'Synchronization started. Posts fetched, comments are syncing in background.',
+            'posts_count': posts_count
+        }), 200
+        
+    except Exception as e:
+        logging.error(f"Error in social sync endpoint: {str(e)}")
+        return jsonify({
+            'error': 'Failed to sync social media',
+            'details': str(e)
+        }), 500
+
+
+@main.route('/social/posts/<int:post_id>/seen', methods=['POST'])
+@jwt_required()
+def mark_post_seen(post_id):
+    try:
+        current_user_id = get_jwt_identity()
+        from app.models.facebook_post import FacebookPost, FacebookComment
+        post = FacebookPost.query.filter_by(id=post_id, user_id=current_user_id).first()
+        
+        if not post:
+            return jsonify({'error': 'Post not found or access denied'}), 404
+        
+        post.is_viewed = True
+        FacebookComment.query.filter_by(post_id=post.id).update({'is_new': False})
+        db.session.commit()
+        return jsonify({'success': True}), 200
+        
+    except Exception as e:
+        logging.error(f"Error marking post as seen: {str(e)}")
+        db.session.rollback()
+        return jsonify({
+            'error': 'Failed to mark post as seen',
+            'details': str(e)
+        }), 500
+
+
+@main.route('/social/comments/<comment_id>/generate-reply', methods=['POST'])
+@jwt_required()
+def generate_comment_reply(comment_id):
+    try:
+        if isinstance(comment_id, str):
+            if comment_id.startswith('c') or comment_id.startswith('r'):
+                try:
+                    comment_id = int(comment_id[1:])
+                except ValueError:
+                    return jsonify({'error': 'Invalid comment ID format'}), 400
+            else:
+                try:
+                    comment_id = int(comment_id)
+                except ValueError:
+                    return jsonify({'error': 'Invalid comment ID format'}), 400
+        current_user_id = get_jwt_identity()
+        
+        from app.models.facebook_post import FacebookPost, FacebookComment
+        from app.services.ai_service import generate_single_reply
+        
+        # Get the comment
+        comment = FacebookComment.query.filter_by(id=comment_id).first()
+        
+        if not comment:
+            return jsonify({'error': 'Comment not found'}), 404
+        
+        post = FacebookPost.query.filter_by(id=comment.post_id, user_id=current_user_id).first()
+        
+        if not post:
+            return jsonify({'error': 'Access denied'}), 403
+        
+        user = User.query.get(current_user_id)
+        user_code = user.code if user and user.code else ''
+        
+        ai_reply = generate_single_reply(
+            comment_id=comment.id,
+            comment_text=comment.message or '',
+            post_text=post.message or post.story or '',
+            user_code=user_code
+        )
+        
+        if not ai_reply:
+            return jsonify({
+                'error': 'Failed to generate AI reply',
+                'details': 'AI service returned no response'
+            }), 500
+        
+        comment.ai_reply = ai_reply
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'comment_id': str(comment.id),
+            'ai_reply': ai_reply
+        }), 200
+        
+    except Exception as e:
+        logging.error(f"Error generating AI reply: {str(e)}")
+        db.session.rollback()
+        return jsonify({
+            'error': 'Failed to generate AI reply',
+            'details': str(e)
+        }), 500
 
 
 
