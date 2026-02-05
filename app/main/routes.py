@@ -1,6 +1,4 @@
 from flask import Blueprint, render_template, current_app, Response, request, jsonify
-from app.script.goHighLevel import GoHighLevelAPI
-from app.script.goHighLevelV2 import GoHighLevelAPI as GoHighLevelV2API
 import requests
 import json
 import os
@@ -14,30 +12,6 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 main = Blueprint('main', __name__)
 
 
-def get_ghl_client():
-    """Get an instance of GoHighLevel V2 API client."""
-    return GoHighLevelV2API(
-        client_id=current_app.config['GHL_CLIENT_ID'],
-        client_secret=current_app.config['GHL_CLIENT_SECRET'],
-        redirect_uri=current_app.config['GHL_REDIRECT_URI']
-    )
-
-def require_token(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        ghl_client = get_ghl_client()
-        if not ghl_client.access_token:
-            return jsonify({"error": "No access token. Please authenticate first."}), 401
-        return f(*args, **kwargs)
-    return decorated_function
-
-# https://app.zestal.pro/api/ghlRedirects
-@main.route('/ghlRedirects')
-def ghlRedirects():
-    data = request.get_json()
-    print('***************************************************')
-    print(data)
-    return Response(status=200)
 
 
 @main.route('/profiles/<int:userId>', methods=['GET', 'OPTIONS'])
@@ -500,151 +474,266 @@ def trigger_scrape_comments():
     }), 202
 
 
-# GoHighLevel V2 API Routes
+# ============================================================================
+# GoHighLevel Marketplace OAuth Routes
+# ============================================================================
 
-@main.route('/ghlcallback')
+def get_ghl_oauth_client():
+    """Get GHL OAuth client instance."""
+    from app.script.ghl_oauth import GHLOAuthClient
+    return GHLOAuthClient(
+        client_id=current_app.config.get('GHL_CLIENT_ID'),
+        client_secret=current_app.config.get('GHL_CLIENT_SECRET'),
+        redirect_uri=current_app.config.get('GHL_REDIRECT_URI')
+    )
+
+
+@main.route('/crm/install')
+def ghl_install():
+    """
+    Get the marketplace app installation URL.
+    
+    Returns the URL that users should visit to install your marketplace app.
+    After authorization, they will be redirected to the callback URL.
+    """
+    try:
+        client = get_ghl_oauth_client()
+        auth_url = client.get_authorization_url()
+        
+        return jsonify({
+            "success": True,
+            "install_url": auth_url,
+            "message": "Visit this URL to install the marketplace app"
+        })
+    except Exception as e:
+        logging.error(f"Error generating install URL: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@main.route('/crm/callback')
 def ghl_callback():
-    """Handle the OAuth callback from GoHighLevel."""
+    """
+    OAuth callback endpoint.
+    
+    GHL redirects here after user authorizes. Exchanges the code for tokens
+    and stores them in the database.
+    
+    Query params:
+        code: Authorization code to exchange for tokens
+        error: Error code if authorization failed
+        error_description: Error message
+    """
+    from app.models.ghl_token import GHLToken
+    
     code = request.args.get('code')
     error = request.args.get('error')
     error_description = request.args.get('error_description')
-
-    print(f"Callback received with full URL: {request.url}")  # Debug full URL
-    print(f"Callback received - Code: {code}, Error: {error}, Description: {error_description}")
-    print(f"All args: {request.args}")
-    print(f"Headers: {dict(request.headers)}")  # Debug headers
-
+    
+    logging.info(f"GHL OAuth callback - Code: {'present' if code else 'missing'}, Error: {error}")
+    
     if error:
+        logging.error(f"GHL OAuth error: {error} - {error_description}")
         return jsonify({
+            "success": False,
             "error": error,
             "error_description": error_description
         }), 400
-
+    
     if not code:
-        return jsonify({"error": "No authorization code received"}), 400
-
+        return jsonify({
+            "success": False,
+            "error": "No authorization code received"
+        }), 400
+    
     try:
-        ghl_client = get_ghl_client()
-        print(f"Client configuration: ID={ghl_client.client_id}, Redirect={ghl_client.redirect_uri}")  # Debug config
+        client = get_ghl_oauth_client()
         
-        # Exchange the code for tokens
-        token_data = ghl_client.exchange_code_for_token(code)
+        # Exchange code for tokens - use 'Company' user type for agency-level auth
+        user_type = request.args.get('user_type', 'Company')  # Default to Company for agency
+        token_data = client.exchange_code_for_token(code, user_type=user_type)
         
-        # Store the tokens in the session or database for future use
-        # For now, we'll just return them (in production, you should store these securely)
-        return jsonify({
-            "message": "Authorization successful!",
-            "token_data": token_data
-        })
+        # Determine if this is an agency or location token
+        is_agency = token_data.get('userType') == 'Company' or user_type == 'Company'
+        
+        if is_agency:
+            # Store as agency token
+            ghl_token = GHLToken.create_or_update_agency(token_data)
+            logging.info(f"Agency token stored for company: {ghl_token.company_id}")
+            
+            return jsonify({
+                "success": True,
+                "message": "Agency authorization successful!",
+                "company_id": ghl_token.company_id,
+                "is_agency": True,
+                "expires_at": ghl_token.expires_at.isoformat()
+            })
+        else:
+            # Store as location token
+            ghl_token = GHLToken.create_or_update(token_data)
+            logging.info(f"Location token stored for: {ghl_token.location_id}")
+            
+            return jsonify({
+                "success": True,
+                "message": "Location authorization successful!",
+                "location_id": ghl_token.location_id,
+                "company_id": ghl_token.company_id,
+                "expires_at": ghl_token.expires_at.isoformat()
+            })
+        
     except Exception as e:
-        print(f"Error in callback: {str(e)}")  # Add debug logging
-        print(f"Full error details: {repr(e)}")  # More detailed error info
+        logging.error(f"GHL OAuth callback error: {e}")
         return jsonify({
+            "success": False,
             "error": "Token exchange failed",
-            "details": str(e),
-            "type": type(e).__name__
+            "details": str(e)
         }), 500
 
-@main.route('/ghl/auth')
-def ghl_auth():
-    """Get the authorization URL for GoHighLevel OAuth."""
-    ghl_client = get_ghl_client()
-    auth_url = ghl_client.get_auth_url()
-    return jsonify({
-        "auth_url": auth_url,
-        "message": "Please visit this URL to authorize the application"
-    })
 
-@main.route('/ghl/contacts')
-@require_token
-def get_contacts():
-    """Get contacts from GoHighLevel."""
+@main.route('/crm/refresh/<location_id>', methods=['POST'])
+def ghl_refresh_token(location_id):
+    """
+    Refresh the access token for a location.
+    
+    Call this before the access token expires (~24 hours).
+    The new tokens are automatically stored in the database.
+    
+    Args:
+        location_id: The GHL location ID
+        
+    Returns:
+        New token expiry info
+    """
+    from app.models.ghl_token import GHLToken
+    
     try:
-        page = request.args.get('page', 1, type=int)
-        limit = request.args.get('limit', 100, type=int)
-        ghl_client = get_ghl_client()
-        contacts = ghl_client.get_contacts(limit=limit, page=page)
-        return jsonify(contacts)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@main.route('/ghl/appointments')
-@require_token
-def get_appointments():
-    """Get appointments from GoHighLevel."""
-    try:
-        page = request.args.get('page', 1, type=int)
-        limit = request.args.get('limit', 100, type=int)
-        ghl_client = get_ghl_client()
-        appointments = ghl_client.get_appointments(limit=limit, page=page)
-        return jsonify(appointments)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@main.route('/ghl/conversations')
-@require_token
-def get_conversations():
-    """Get conversations from GoHighLevel."""
-    try:
-        page = request.args.get('page', 1, type=int)
-        limit = request.args.get('limit', 100, type=int)
-        ghl_client = get_ghl_client()
-        conversations = ghl_client.get_conversations(limit=limit, page=page)
-        return jsonify(conversations)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# Example route showing how to use the API with error handling
-@main.route('/ghl/dashboard')
-@require_token
-def ghl_dashboard():
-    """Get an overview of GoHighLevel data."""
-    try:
-        ghl_client = get_ghl_client()
-        # Get multiple types of data
-        contacts = ghl_client.get_contacts(limit=5)
-        appointments = ghl_client.get_appointments(limit=5)
-        conversations = ghl_client.get_conversations(limit=5)
+        ghl_token = GHLToken.get_by_location(location_id)
+        
+        if not ghl_token:
+            return jsonify({
+                "success": False,
+                "error": "Location not found"
+            }), 404
+        
+        client = get_ghl_oauth_client()
+        
+        # Refresh the token
+        token_data = client.refresh_access_token(
+            ghl_token.refresh_token,
+            ghl_token.user_type
+        )
+        
+        # Update stored tokens
+        ghl_token.update_tokens(token_data)
+        db.session.commit()
+        
+        logging.info(f"GHL token refreshed for location: {location_id}")
         
         return jsonify({
-            "contacts": contacts,
-            "appointments": appointments,
-            "conversations": conversations,
-            "status": "success"
+            "success": True,
+            "message": "Token refreshed successfully",
+            "location_id": location_id,
+            "expires_at": ghl_token.expires_at.isoformat()
         })
+        
     except Exception as e:
+        logging.error(f"GHL token refresh error: {e}")
         return jsonify({
-            "error": str(e),
-            "status": "error"
+            "success": False,
+            "error": "Token refresh failed",
+            "details": str(e)
         }), 500
 
 
-# @main.route('/ghl')
-# def ghl():
-#     contacts = []
-#     ghl = GoHighLevelAPI(current_app.config['GHL_API_KEY'])
-#     try:
-#         # ✅ Get first 5 contacts
-#         contacts = ghl.get_contacts(limit=20)
-#         print("Contacts:", contacts)
-#         # ✅ Create a new contact
-#         # new_contact = ghl.create_contact({"firstName": "Alice", "lastName": "Smith", "email": "alice.smith@example.com"})
-#         # print("New Contact:", new_contact)
-#     except RateLimitError as e:
-#         print("Hit API rate limit:", e)   
+@main.route('/crm/locations')
+@jwt_required()
+def ghl_list_locations():
+    """
+    List all connected GHL locations.
+    
+    Returns all locations that have installed your marketplace app.
+    """
+    from app.models.ghl_token import GHLToken
+    
+    try:
+        tokens = GHLToken.query.all()
+        
+        return jsonify({
+            "success": True,
+            "locations": [token.to_dict() for token in tokens],
+            "total": len(tokens)
+        })
+        
+    except Exception as e:
+        logging.error(f"Error listing GHL locations: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@main.route('/crm/webhooks', methods=['POST'])
+def ghl_webhooks():
+    """
+    Receive webhook events from GoHighLevel.
+    
+    Configure this URL in your marketplace app's webhook settings.
+    Events include: AppInstall, AppUninstall, ContactCreate, etc.
+    """
+    from app.script.ghl_oauth import GHLOAuthClient
+    
+    try:
+        # Get the webhook signature for verification (optional but recommended)
+        signature = request.headers.get('x-wh-signature')
+        payload = request.get_data(as_text=True)
+        
+        # Verify signature if present
+        if signature:
+            is_valid = GHLOAuthClient.verify_webhook_signature(payload, signature)
+            if not is_valid:
+                logging.warning("Invalid webhook signature received")
+                # Optionally reject invalid signatures:
+                # return jsonify({"error": "Invalid signature"}), 401
+        
+        # Parse webhook data
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "No data received"}), 400
+        
+        event_type = data.get('type', 'unknown')
+        location_id = data.get('locationId')
+        
+        logging.info(f"GHL webhook received: {event_type} for location {location_id}")
+        
+        # Handle specific events
+        if event_type == 'AppInstall':
+            logging.info(f"App installed on location: {location_id}")
+            # The OAuth callback will handle token storage
+            
+        elif event_type == 'AppUninstall':
+            logging.info(f"App uninstalled from location: {location_id}")
+            # Optionally remove the token from database
+            from app.models.ghl_token import GHLToken
+            token = GHLToken.get_by_location(location_id)
+            if token:
+                db.session.delete(token)
+                db.session.commit()
+                logging.info(f"Removed token for uninstalled location: {location_id}")
+        
+        # Add more event handlers as needed:
+        # elif event_type == 'ContactCreate':
+        #     handle_contact_create(data)
+        
+        # Always return 200 to acknowledge receipt
+        return jsonify({"success": True, "message": "Webhook received"}), 200
+        
+    except Exception as e:
+        logging.error(f"GHL webhook error: {e}")
+        # Still return 200 to prevent retries for processing errors
+        return jsonify({"success": False, "error": str(e)}), 200
 
 
 @main.route('/test')
 def test():
-    print('SOME TESTTTTTTTTTSSSSSSSS')
     result = {
         "success": True,
         "message": "Test endpoint hit successfully"
     }
-    
-
-    # from app.services.ai_service import generateCommentsReply
-    # userIds = [1, 4, 8]
-    # result = generateCommentsReply(userIds)
     return jsonify(result)
-

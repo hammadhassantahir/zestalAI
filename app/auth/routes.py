@@ -74,16 +74,24 @@ def signup():
             return jsonify({'error': 'Email already registered'}), 409
         
         locationId = None
+        location_token_data = None
+        
+        # Import here so it's available for both token generation and storage
+        from app.models.ghl_token import GHLToken
+        from app.script.ghl_oauth import GHLOAuthClient
+        
         try:
+            # Use Private Integration Token for location creation (works reliably)
+            # OAuth tokens will be used for the user's ongoing API calls
             client = LeadConnectorClient(
                 access_token=current_app.config['GHL_ACCESS_TOKEN'],
-                location_id=current_app.config['GHL_LOCATION_ID']
+                location_id=None  # No location - creating new one
             )
             locationData = {
-                "name": data['firstName']+' '+data['lastName'],
+                "name": data['firstName'] + ' ' + data['lastName'],
                 "companyId": str(current_app.config['GHL_COMPANY_ID']),
                 "prospectInfo": {
-                    "firstName":data['firstName'],
+                    "firstName": data['firstName'],
                     "lastName": data['lastName'],
                     "email": data['email']
                 },
@@ -91,7 +99,29 @@ def signup():
             }
             responce = client.create_location(locationData)
             locationId = responce["id"]
-            print('**** LOCATION CREATED ON GHL : ', locationId)
+            logging.info(f'Location created on GHL: {locationId}')
+            
+            # Generate OAuth token for this location (for user's ongoing API access)
+            try:
+                agency_token = GHLToken.get_agency_token()
+                if agency_token:
+                    oauth_client = GHLOAuthClient(
+                        client_id=current_app.config.get('GHL_CLIENT_ID'),
+                        client_secret=current_app.config.get('GHL_CLIENT_SECRET'),
+                        redirect_uri=current_app.config.get('GHL_REDIRECT_URI')
+                    )
+                    location_token_data = oauth_client.get_location_token_from_company(
+                        company_access_token=agency_token.access_token,
+                        company_id=agency_token.company_id,
+                        location_id=locationId
+                    )
+                    logging.info(f'Generated OAuth token for location: {locationId}')
+                else:
+                    logging.warning('No agency OAuth token - user will need to authorize separately')
+            except Exception as e:
+                logging.error(f"Failed to generate location OAuth token: {e}")
+                location_token_data = None
+                
         except Exception as e:
             logging.error(f"Error Creating Location / Sub Account : {str(e)}")
             return jsonify({'error': f'Internal server error: {str(e)}'}), 500
@@ -104,12 +134,23 @@ def signup():
             email=data['email'],
             is_verified=True,
             ghl_location_id=locationId,
-            # code=secrets.token_urlsafe(32)
         )
         user.set_password(data['password'])
         
         db.session.add(user)
         db.session.commit()
+        
+        # Store location OAuth token linked to this user
+        if locationId and location_token_data:
+            try:
+                GHLToken.create_location_token(
+                    location_id=locationId,
+                    token_data=location_token_data,
+                    app_user_id=user.id
+                )
+                logging.info(f'Stored location token for user {user.id}')
+            except Exception as e:
+                logging.error(f"Failed to store location token: {e}")
         
         # Create access token
         access_token = create_access_token(identity=str(user.id))

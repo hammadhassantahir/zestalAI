@@ -1,37 +1,161 @@
 from flask import Blueprint, current_app, request, jsonify
 from app.script.highLevelAPI import LeadConnectorClient
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.models.user import User
+from app.models.ghl_token import GHLToken
+from app.extensions import db
 from functools import wraps
 import logging
 
 ghl = Blueprint('ghl', __name__)
 
 def init_ghl_client():
-    """Initialize GHL client with configuration"""
+    """
+    Initialize GHL client with the current user's OAuth token.
+    
+    Gets OAuth token from ghl_tokens table for the user's location.
+    Auto-refreshes if token is expiring soon.
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user:
+        raise Exception("User not found")
+    
+    location_id = user.ghl_location_id
+    if not location_id:
+        raise Exception("User has no GHL location configured")
+    
+    # Get OAuth token for this location
+    ghl_token = GHLToken.get_by_location(location_id)
+    
+    if not ghl_token:
+        raise Exception(f"No OAuth token found for location {location_id}. Please re-authorize.")
+    
+    # Check if token needs refresh
+    if ghl_token.expires_soon(minutes=30):
+        try:
+            from app.script.ghl_oauth import GHLOAuthClient
+            oauth_client = GHLOAuthClient(
+                client_id=current_app.config.get('GHL_CLIENT_ID'),
+                client_secret=current_app.config.get('GHL_CLIENT_SECRET'),
+                redirect_uri=current_app.config.get('GHL_REDIRECT_URI')
+            )
+            token_data = oauth_client.refresh_access_token(
+                ghl_token.refresh_token,
+                ghl_token.user_type
+            )
+            ghl_token.update_tokens(token_data)
+            db.session.commit()
+            logging.info(f"Refreshed OAuth token for location {location_id}")
+        except Exception as e:
+            logging.error(f"Failed to refresh OAuth token: {e}")
+            # Continue with existing token if refresh fails
+    
     return LeadConnectorClient(
-        access_token=current_app.config['GHL_ACCESS_TOKEN'],
-        location_id=current_app.config['GHL_LOCATION_ID']
+        access_token=ghl_token.access_token,
+        location_id=location_id
     )
+
+
+def init_agency_client():
+    """
+    Initialize GHL client with the agency OAuth token.
+    
+    Use this for admin operations that need access to all locations.
+    """
+    agency_token = GHLToken.get_agency_token()
+    
+    if not agency_token:
+        raise Exception("No agency OAuth token found. Please authorize the marketplace app first.")
+    
+    # Check if token needs refresh
+    if agency_token.expires_soon(minutes=30):
+        try:
+            from app.script.ghl_oauth import GHLOAuthClient
+            oauth_client = GHLOAuthClient(
+                client_id=current_app.config.get('GHL_CLIENT_ID'),
+                client_secret=current_app.config.get('GHL_CLIENT_SECRET'),
+                redirect_uri=current_app.config.get('GHL_REDIRECT_URI')
+            )
+            token_data = oauth_client.refresh_access_token(
+                agency_token.refresh_token,
+                agency_token.user_type
+            )
+            agency_token.update_tokens(token_data)
+            db.session.commit()
+            logging.info("Refreshed agency OAuth token")
+        except Exception as e:
+            logging.error(f"Failed to refresh agency OAuth token: {e}")
+    
+    return LeadConnectorClient(
+        access_token=agency_token.access_token,
+        location_id=None  # Agency level - no specific location
+    )
+
+
+# ========== Agency Admin Endpoints ==========
+@ghl.route('/admin/locations', methods=['GET'])
+@jwt_required()  # TODO: Add admin role check
+def list_agency_locations():
+    """List all locations in the agency (admin only)"""
+    try:
+        client = init_agency_client()
+        # Get all locations from the company
+        # Note: This endpoint may need adjustment based on GHL API
+        locations = client._request("GET", "/locations/search", params={
+            "companyId": current_app.config.get('GHL_COMPANY_ID'),
+            "limit": 100
+        })
+        return jsonify(locations), 200
+    except Exception as e:
+        logging.error(f"Error listing agency locations: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@ghl.route('/admin/locations/<location_id>', methods=['GET'])
+@jwt_required()  # TODO: Add admin role check
+def get_agency_location(location_id):
+    """Get any location details using agency token (admin only)"""
+    try:
+        client = init_agency_client()
+        location = client.get_location(location_id)
+        return jsonify(location), 200
+    except Exception as e:
+        logging.error(f"Error getting location {location_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 
 # ========== Contact Management ==========
 @ghl.route('/contacts', methods=['GET'])
 @jwt_required()
 def list_contacts():
-    print('THEREEEEEEEEEEEEEEEEEEEEE')
     """List contacts with optional filters"""
     try:
         client = init_ghl_client()
+        
+        # Map sortBy to valid GHL API values
+        sort_by = request.args.get('sortBy')
+        if sort_by:
+            sort_map = {
+                'dateCreated': 'date_added',
+                'date_created': 'date_added',
+                'dateUpdated': 'date_updated',
+                'date_updated': 'date_updated'
+            }
+            sort_by = sort_map.get(sort_by, sort_by)
+        
         query_params = {
             'limit': request.args.get('limit', type=int),
-            'page': request.args.get('page', type=int),
             'query': request.args.get('query'),
-            'sortBy': request.args.get('sortBy'),
-            'tags': request.args.get('tags'),
-            'dateCreated': request.args.get('dateCreated')
+            'sortBy': sort_by,
+            'sortOrder': request.args.get('sortOrder'),  # 'asc' or 'desc'
+            'startAfter': request.args.get('startAfter'),
+            'startAfterId': request.args.get('startAfterId')
         }
-        # Remove None values
-        query_params = {k: v for k, v in query_params.items() if v is not None}
-        print(query_params)
+        # Remove None and empty string values
+        query_params = {k: v for k, v in query_params.items() if v is not None and v != ''}
+        
         contacts = client.list_contacts(**query_params)
         return jsonify(contacts), 200
     except Exception as e:
@@ -95,16 +219,18 @@ def delete_contact(contact_id):
         return jsonify({"error": str(e)}), 500
 
 # ========== Location Management ==========
-@ghl.route('/locations/<location_id>', methods=['GET'])
+@ghl.route('/locations', methods=['GET'])
 @jwt_required()
-def get_location(location_id):
-    """Get location details"""
+def get_location(location_id=None):
+    """Get location details (user's own location only)"""
     try:
         client = init_ghl_client()
-        location = client.get_location(location_id)
+        # Always use the user's own location from their profile
+        # The location_id param is ignored for security
+        location = client.get_location()
         return jsonify(location), 200
     except Exception as e:
-        logging.error(f"Error getting location {location_id}: {str(e)}")
+        logging.error(f"Error getting location: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 # ========== Campaign Management ==========
@@ -126,45 +252,50 @@ def list_campaigns():
         logging.error(f"Error listing campaigns: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# ========== Task Management ==========
-@ghl.route('/tasks', methods=['GET'])
+# ========== Task Management (Tasks are per-contact in GHL) ==========
+@ghl.route('/contacts/<contact_id>/tasks', methods=['GET'])
 @jwt_required()
-def list_tasks():
-    """List tasks with optional filters"""
+def list_tasks(contact_id):
+    """List tasks for a specific contact"""
     try:
         client = init_ghl_client()
-        query_params = {
-            'limit': request.args.get('limit', type=int),
-            'page': request.args.get('page', type=int),
-            'status': request.args.get('status'),
-            'dueDate': request.args.get('dueDate')
-        }
-        query_params = {k: v for k, v in query_params.items() if v is not None}
-        tasks = client.list_tasks(**query_params)
+        tasks = client.list_tasks(contact_id)
         return jsonify(tasks), 200
     except Exception as e:
-        logging.error(f"Error listing tasks: {str(e)}")
+        logging.error(f"Error listing tasks for contact {contact_id}: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-@ghl.route('/tasks', methods=['POST'])
+@ghl.route('/contacts/<contact_id>/tasks', methods=['POST'])
 @jwt_required()
-def create_task():
-    """Create a new task"""
+def create_task(contact_id):
+    """Create a new task for a contact"""
     try:
         data = request.get_json()
         if not data:
             return jsonify({"error": "No data provided"}), 400
         
         client = init_ghl_client()
-        task = client.create_task(data)
+        task = client.create_task(contact_id, data)
         return jsonify(task), 201
     except Exception as e:
         logging.error(f"Error creating task: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-@ghl.route('/tasks/<task_id>', methods=['PUT'])
+@ghl.route('/contacts/<contact_id>/tasks/<task_id>', methods=['GET'])
 @jwt_required()
-def update_task(task_id):
+def get_task(contact_id, task_id):
+    """Get a specific task"""
+    try:
+        client = init_ghl_client()
+        task = client.get_task(contact_id, task_id)
+        return jsonify(task), 200
+    except Exception as e:
+        logging.error(f"Error getting task {task_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@ghl.route('/contacts/<contact_id>/tasks/<task_id>', methods=['PUT'])
+@jwt_required()
+def update_task(contact_id, task_id):
     """Update an existing task"""
     try:
         data = request.get_json()
@@ -172,23 +303,39 @@ def update_task(task_id):
             return jsonify({"error": "No data provided"}), 400
         
         client = init_ghl_client()
-        task = client.update_task(task_id, data)
+        task = client.update_task(contact_id, task_id, data)
         return jsonify(task), 200
     except Exception as e:
         logging.error(f"Error updating task {task_id}: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-@ghl.route('/tasks/<task_id>', methods=['DELETE'])
+@ghl.route('/contacts/<contact_id>/tasks/<task_id>', methods=['DELETE'])
 @jwt_required()
-def delete_task(task_id):
+def delete_task(contact_id, task_id):
     """Delete a task"""
     try:
         client = init_ghl_client()
-        client.delete_task(task_id)
+        client.delete_task(contact_id, task_id)
         return jsonify({"message": "Task deleted successfully"}), 200
     except Exception as e:
         logging.error(f"Error deleting task {task_id}: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+@ghl.route('/contacts/<contact_id>/tasks/<task_id>/completed', methods=['PUT'])
+@jwt_required()
+def complete_task(contact_id, task_id):
+    """Mark a task as completed or incomplete"""
+    try:
+        data = request.get_json() or {}
+        completed = data.get('completed', True)
+        
+        client = init_ghl_client()
+        task = client.complete_task(contact_id, task_id, completed)
+        return jsonify(task), 200
+    except Exception as e:
+        logging.error(f"Error completing task {task_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 
 # ========== Calendar Management ==========
 @ghl.route('/calendars', methods=['GET'])
@@ -296,15 +443,14 @@ def search_opportunities():
     """Search/filter opportunities"""
     try:
         client = init_ghl_client()
+        # GHL API uses snake_case for query params
         query_params = {
             'limit': request.args.get('limit', type=int),
             'page': request.args.get('page', type=int),
-            'pipelineId': request.args.get('pipelineId'),
-            'stageId': request.args.get('stageId'),
+            'pipeline_id': request.args.get('pipeline_id') or request.args.get('pipelineId'),
+            'pipeline_stage_id': request.args.get('pipeline_stage_id') or request.args.get('stageId'),
             'status': request.args.get('status'),
-            'contactId': request.args.get('contactId'),
-            'startDate': request.args.get('startDate'),
-            'endDate': request.args.get('endDate'),
+            'contact_id': request.args.get('contact_id') or request.args.get('contactId'),
             'q': request.args.get('q')
         }
         query_params = {k: v for k, v in query_params.items() if v is not None}

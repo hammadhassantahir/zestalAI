@@ -75,3 +75,5 @@ stop_server.sh
 backup/
 app/static/zestal_leads.json
 docs/
+
+app/scriptBk

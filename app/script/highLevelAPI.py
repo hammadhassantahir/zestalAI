@@ -24,8 +24,11 @@ class LeadConnectorClient:
         # Ensure query params exist
         params = params or {}
 
-        # Always add locationId as a query param if available
-        if self.location_id and "locationId" not in params:
+        # Check if we should skip adding locationId (some endpoints infer from token)
+        skip_location = params.pop('_skip_location', False)
+        
+        # Add locationId as a query param if available and not skipped
+        if self.location_id and not skip_location and "locationId" not in params:
             params["locationId"] = self.location_id
 
         resp = requests.request(
@@ -73,6 +76,7 @@ class LeadConnectorClient:
         return self._request("GET", f"/locations/{loc_id}")
 
     def create_location(self, data: dict):
+        """Create a new sub-account/location."""
         try:
             response = self._request("POST", "/locations/", data=data)
             return response
@@ -137,31 +141,46 @@ class LeadConnectorClient:
         return self._request("DELETE", f"/invoices/{invoice_id}")
 
     # =====
-    # Tasks
+    # Tasks (Note: Tasks are per contact in GHL)
     # =====
-    def list_tasks(self, **query):
-        return self._request("GET", "/tasks/", params=query)
+    def list_tasks(self, contact_id: str, **query):
+        """List tasks for a specific contact"""
+        return self._request("GET", f"/contacts/{contact_id}/tasks/", params=query)
 
-    def create_task(self, data: dict):
-        return self._request("POST", "/tasks/", data=data)
+    def get_task(self, contact_id: str, task_id: str):
+        """Get a specific task"""
+        return self._request("GET", f"/contacts/{contact_id}/tasks/{task_id}")
 
-    def update_task(self, task_id: str, data: dict):
-        return self._request("PUT", f"/tasks/{task_id}", data=data)
+    def create_task(self, contact_id: str, data: dict):
+        """Create a task for a contact"""
+        return self._request("POST", f"/contacts/{contact_id}/tasks/", data=data)
 
-    def delete_task(self, task_id: str):
-        return self._request("DELETE", f"/tasks/{task_id}")
+    def update_task(self, contact_id: str, task_id: str, data: dict):
+        """Update a task"""
+        return self._request("PUT", f"/contacts/{contact_id}/tasks/{task_id}", data=data)
+
+    def delete_task(self, contact_id: str, task_id: str):
+        """Delete a task"""
+        return self._request("DELETE", f"/contacts/{contact_id}/tasks/{task_id}")
+
+    def complete_task(self, contact_id: str, task_id: str, completed: bool = True):
+        """Mark a task as completed or incomplete"""
+        return self._request("PUT", f"/contacts/{contact_id}/tasks/{task_id}/completed", data={"completed": completed})
 
     # ====
-    # Tags
+    # Tags (under location)
     # ====
     def list_tags(self, **query):
-        return self._request("GET", "/tags/", params=query)
+        """List tags for the location"""
+        return self._request("GET", f"/locations/{self.location_id}/tags/", params=query)
 
     def create_tag(self, data: dict):
-        return self._request("POST", "/tags/", data=data)
+        """Create a tag"""
+        return self._request("POST", f"/locations/{self.location_id}/tags/", data=data)
 
     def delete_tag(self, tag_id: str):
-        return self._request("DELETE", f"/tags/{tag_id}")
+        """Delete a tag"""
+        return self._request("DELETE", f"/locations/{self.location_id}/tags/{tag_id}")
 
     # =========
     # Workflows
@@ -219,16 +238,21 @@ class LeadConnectorClient:
         """GET /opportunities/search - Search opportunities with filters
         
         Supported query params:
-        - pipelineId: Filter by pipeline
-        - stageId: Filter by stage
+        - pipeline_id: Filter by pipeline
+        - pipeline_stage_id: Filter by stage
         - status: Filter by status (open, won, lost, abandoned, all)
-        - contactId: Filter by contact
-        - startDate: Filter by date range start
-        - endDate: Filter by date range end
-        - limit: Limit results
+        - contact_id: Filter by contact
+        - limit: Limit results (max 100, default 20)
         - page: Page number
+        
+        Note: GHL API requires location_id (snake_case), not locationId (camelCase)
         """
-        return self._request("GET", "/opportunities/search", params=query)
+        params = dict(query)
+        # Add location_id (snake_case) as required by this endpoint
+        params['location_id'] = self.location_id
+        # Skip adding locationId (camelCase) - this endpoint wants snake_case
+        params['_skip_location'] = True
+        return self._request("GET", "/opportunities/search", params=params)
 
     def get_opportunity(self, opportunity_id: str):
         """GET /opportunities/{id} - Get single opportunity"""

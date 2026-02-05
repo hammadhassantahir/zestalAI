@@ -2,3 +2,4 @@
 from .user import User
 from .facebook_post import FacebookPost, FacebookComment
 from .job import Job
+from .ghl_token import GHLToken

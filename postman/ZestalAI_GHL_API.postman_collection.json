@@ -1,0 +1,832 @@
+{
+  "info": {
+    "name": "ZestalAI - GHL API",
+    "description": "GoHighLevel API endpoints for ZestalAI application",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000/api/ghl",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "YOUR_JWT_TOKEN_HERE",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List All Agency Locations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/locations",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "locations"]
+            }
+          }
+        },
+        {
+          "name": "Get Agency Location by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/locations/:location_id",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "locations", ":location_id"],
+              "variable": [
+                {
+                  "key": "location_id",
+                  "value": "LOCATION_ID_HERE"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Contacts",
+      "item": [
+        {
+          "name": "List Contacts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/contacts?limit=10&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["contacts"],
+              "query": [
+                {"key": "limit", "value": "10"},
+                {"key": "page", "value": "1"},
+                {"key": "query", "value": "", "disabled": true},
+                {"key": "tags", "value": "", "disabled": true},
+                {"key": "sortBy", "value": "dateCreated", "disabled": true}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Contact by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/contacts/:contact_id",
+              "host": ["{{base_url}}"],
+              "path": ["contacts", ":contact_id"],
+              "variable": [
+                {
+                  "key": "contact_id",
+                  "value": "CONTACT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Contact",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"phone\": \"+1234567890\",\n  \"tags\": [\"lead\", \"website\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/contacts",
+              "host": ["{{base_url}}"],
+              "path": ["contacts"]
+            }
+          }
+        },
+        {
+          "name": "Update Contact",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Updated\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/contacts/:contact_id",
+              "host": ["{{base_url}}"],
+              "path": ["contacts", ":contact_id"],
+              "variable": [
+                {
+                  "key": "contact_id",
+                  "value": "CONTACT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Contact",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/contacts/:contact_id",
+              "host": ["{{base_url}}"],
+              "path": ["contacts", ":contact_id"],
+              "variable": [
+                {
+                  "key": "contact_id",
+                  "value": "CONTACT_ID_HERE"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "List Contact Tasks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/contacts/:contact_id/tasks",
+              "host": ["{{base_url}}"],
+              "path": ["contacts", ":contact_id", "tasks"],
+              "variable": [
+                {
+                  "key": "contact_id",
+                  "value": "CONTACT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Follow up call\",\n  \"body\": \"Call to discuss proposal\",\n  \"dueDate\": \"2026-02-10T10:00:00Z\",\n  \"completed\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/contacts/:contact_id/tasks",
+              "host": ["{{base_url}}"],
+              "path": ["contacts", ":contact_id", "tasks"],
+              "variable": [
+                {
+                  "key": "contact_id",
+                  "value": "CONTACT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Task",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/contacts/:contact_id/tasks/:task_id",
+              "host": ["{{base_url}}"],
+              "path": ["contacts", ":contact_id", "tasks", ":task_id"],
+              "variable": [
+                {"key": "contact_id", "value": "CONTACT_ID_HERE"},
+                {"key": "task_id", "value": "TASK_ID_HERE"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Task",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated task title\",\n  \"completed\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/contacts/:contact_id/tasks/:task_id",
+              "host": ["{{base_url}}"],
+              "path": ["contacts", ":contact_id", "tasks", ":task_id"],
+              "variable": [
+                {"key": "contact_id", "value": "CONTACT_ID_HERE"},
+                {"key": "task_id", "value": "TASK_ID_HERE"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Task",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/contacts/:contact_id/tasks/:task_id",
+              "host": ["{{base_url}}"],
+              "path": ["contacts", ":contact_id", "tasks", ":task_id"],
+              "variable": [
+                {"key": "contact_id", "value": "CONTACT_ID_HERE"},
+                {"key": "task_id", "value": "TASK_ID_HERE"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Complete Task",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"completed\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/contacts/:contact_id/tasks/:task_id/completed",
+              "host": ["{{base_url}}"],
+              "path": ["contacts", ":contact_id", "tasks", ":task_id", "completed"],
+              "variable": [
+                {"key": "contact_id", "value": "CONTACT_ID_HERE"},
+                {"key": "task_id", "value": "TASK_ID_HERE"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Locations",
+      "item": [
+        {
+          "name": "Get My Location",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/locations",
+              "host": ["{{base_url}}"],
+              "path": ["locations"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Calendars",
+      "item": [
+        {
+          "name": "List Calendars",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/calendars?limit=10&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["calendars"],
+              "query": [
+                {"key": "limit", "value": "10"},
+                {"key": "page", "value": "1"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Calendar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/calendars/:calendar_id",
+              "host": ["{{base_url}}"],
+              "path": ["calendars", ":calendar_id"],
+              "variable": [
+                {"key": "calendar_id", "value": "CALENDAR_ID_HERE"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Calendar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sales Calendar\",\n  \"description\": \"Calendar for sales appointments\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/calendars",
+              "host": ["{{base_url}}"],
+              "path": ["calendars"]
+            }
+          }
+        },
+        {
+          "name": "Update Calendar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Calendar Name\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/calendars/:calendar_id",
+              "host": ["{{base_url}}"],
+              "path": ["calendars", ":calendar_id"],
+              "variable": [
+                {"key": "calendar_id", "value": "CALENDAR_ID_HERE"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Calendar",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/calendars/:calendar_id",
+              "host": ["{{base_url}}"],
+              "path": ["calendars", ":calendar_id"],
+              "variable": [
+                {"key": "calendar_id", "value": "CALENDAR_ID_HERE"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pipelines & Opportunities",
+      "item": [
+        {
+          "name": "List Pipelines",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/pipelines",
+              "host": ["{{base_url}}"],
+              "path": ["pipelines"]
+            }
+          }
+        },
+        {
+          "name": "Get Pipeline Stages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/pipelines/:pipeline_id/stages",
+              "host": ["{{base_url}}"],
+              "path": ["pipelines", ":pipeline_id", "stages"],
+              "variable": [
+                {"key": "pipeline_id", "value": "PIPELINE_ID_HERE"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Opportunities",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/opportunities?limit=10&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["opportunities"],
+              "query": [
+                {"key": "limit", "value": "10"},
+                {"key": "page", "value": "1"},
+                {"key": "pipeline_id", "value": "", "disabled": true},
+                {"key": "pipeline_stage_id", "value": "", "disabled": true},
+                {"key": "status", "value": "open", "disabled": true},
+                {"key": "contact_id", "value": "", "disabled": true}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Opportunity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/opportunities/:opportunity_id",
+              "host": ["{{base_url}}"],
+              "path": ["opportunities", ":opportunity_id"],
+              "variable": [
+                {"key": "opportunity_id", "value": "OPPORTUNITY_ID_HERE"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Opportunity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pipelineId\": \"PIPELINE_ID_HERE\",\n  \"pipelineStageId\": \"STAGE_ID_HERE\",\n  \"contactId\": \"CONTACT_ID_HERE\",\n  \"name\": \"New Deal\",\n  \"monetaryValue\": 5000,\n  \"status\": \"open\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/opportunities",
+              "host": ["{{base_url}}"],
+              "path": ["opportunities"]
+            }
+          }
+        },
+        {
+          "name": "Update Opportunity",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Deal Name\",\n  \"monetaryValue\": 7500\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/opportunities/:opportunity_id",
+              "host": ["{{base_url}}"],
+              "path": ["opportunities", ":opportunity_id"],
+              "variable": [
+                {"key": "opportunity_id", "value": "OPPORTUNITY_ID_HERE"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Opportunity Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"won\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/opportunities/:opportunity_id/status",
+              "host": ["{{base_url}}"],
+              "path": ["opportunities", ":opportunity_id", "status"],
+              "variable": [
+                {"key": "opportunity_id", "value": "OPPORTUNITY_ID_HERE"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Opportunity",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/opportunities/:opportunity_id",
+              "host": ["{{base_url}}"],
+              "path": ["opportunities", ":opportunity_id"],
+              "variable": [
+                {"key": "opportunity_id", "value": "OPPORTUNITY_ID_HERE"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Messages",
+      "item": [
+        {
+          "name": "Send Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contactId\": \"CONTACT_ID_HERE\",\n  \"subject\": \"Hello from ZestalAI\",\n  \"message\": \"This is the email body text.\",\n  \"html\": \"<p>This is the <strong>HTML</strong> email body.</p>\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/messages/email",
+              "host": ["{{base_url}}"],
+              "path": ["messages", "email"]
+            }
+          }
+        },
+        {
+          "name": "Send SMS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contactId\": \"CONTACT_ID_HERE\",\n  \"message\": \"Hello from ZestalAI!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/messages/sms",
+              "host": ["{{base_url}}"],
+              "path": ["messages", "sms"]
+            }
+          }
+        },
+        {
+          "name": "Send WhatsApp",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contactId\": \"CONTACT_ID_HERE\",\n  \"message\": \"Hello from ZestalAI via WhatsApp!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/messages/whatsapp",
+              "host": ["{{base_url}}"],
+              "path": ["messages", "whatsapp"]
+            }
+          }
+        },
+        {
+          "name": "Get Conversation Messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/conversations/:conversation_id/messages?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["conversations", ":conversation_id", "messages"],
+              "query": [
+                {"key": "limit", "value": "50"}
+              ],
+              "variable": [
+                {"key": "conversation_id", "value": "CONVERSATION_ID_HERE"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tags",
+      "item": [
+        {
+          "name": "List Tags",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tags",
+              "host": ["{{base_url}}"],
+              "path": ["tags"]
+            }
+          }
+        },
+        {
+          "name": "Create Tag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Tag\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tags",
+              "host": ["{{base_url}}"],
+              "path": ["tags"]
+            }
+          }
+        },
+        {
+          "name": "Delete Tag",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tags/:tag_id",
+              "host": ["{{base_url}}"],
+              "path": ["tags", ":tag_id"],
+              "variable": [
+                {"key": "tag_id", "value": "TAG_ID_HERE"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Tags to Contact",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tags\": [\"tag1\", \"tag2\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/contacts/:contact_id/tags",
+              "host": ["{{base_url}}"],
+              "path": ["contacts", ":contact_id", "tags"],
+              "variable": [
+                {"key": "contact_id", "value": "CONTACT_ID_HERE"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove Tag from Contact",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/contacts/:contact_id/tags/:tag_id",
+              "host": ["{{base_url}}"],
+              "path": ["contacts", ":contact_id", "tags", ":tag_id"],
+              "variable": [
+                {"key": "contact_id", "value": "CONTACT_ID_HERE"},
+                {"key": "tag_id", "value": "TAG_ID_HERE"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Campaigns & Workflows",
+      "item": [
+        {
+          "name": "List Campaigns",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/campaigns?limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["campaigns"],
+              "query": [
+                {"key": "limit", "value": "20"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Contact to Campaign",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/contacts/:contact_id/campaigns/:campaign_id",
+              "host": ["{{base_url}}"],
+              "path": ["contacts", ":contact_id", "campaigns", ":campaign_id"],
+              "variable": [
+                {"key": "contact_id", "value": "CONTACT_ID_HERE"},
+                {"key": "campaign_id", "value": "CAMPAIGN_ID_HERE"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove Contact from Campaign",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/contacts/:contact_id/campaigns/:campaign_id",
+              "host": ["{{base_url}}"],
+              "path": ["contacts", ":contact_id", "campaigns", ":campaign_id"],
+              "variable": [
+                {"key": "contact_id", "value": "CONTACT_ID_HERE"},
+                {"key": "campaign_id", "value": "CAMPAIGN_ID_HERE"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Workflows",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/workflows",
+              "host": ["{{base_url}}"],
+              "path": ["workflows"]
+            }
+          }
+        },
+        {
+          "name": "Add Contact to Workflow",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/contacts/:contact_id/workflows/:workflow_id",
+              "host": ["{{base_url}}"],
+              "path": ["contacts", ":contact_id", "workflows", ":workflow_id"],
+              "variable": [
+                {"key": "contact_id", "value": "CONTACT_ID_HERE"},
+                {"key": "workflow_id", "value": "WORKFLOW_ID_HERE"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove Contact from Workflow",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/contacts/:contact_id/workflows/:workflow_id",
+              "host": ["{{base_url}}"],
+              "path": ["contacts", ":contact_id", "workflows", ":workflow_id"],
+              "variable": [
+                {"key": "contact_id", "value": "CONTACT_ID_HERE"},
+                {"key": "workflow_id", "value": "WORKFLOW_ID_HERE"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stats",
+      "item": [
+        {
+          "name": "Opportunity Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/stats/opportunities?pipeline_id=PIPELINE_ID",
+              "host": ["{{base_url}}"],
+              "path": ["stats", "opportunities"],
+              "query": [
+                {"key": "pipeline_id", "value": "PIPELINE_ID"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/stats/dashboard",
+              "host": ["{{base_url}}"],
+              "path": ["stats", "dashboard"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
