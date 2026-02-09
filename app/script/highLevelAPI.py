@@ -167,6 +167,71 @@ class LeadConnectorClient:
         """Mark a task as completed or incomplete"""
         return self._request("PUT", f"/contacts/{contact_id}/tasks/{task_id}/completed", data={"completed": completed})
 
+    def get_all_tasks(self, limit: int = 100):
+        """
+        Get all tasks across all contacts.
+        
+        Loops through all contacts and fetches their tasks.
+        Returns combined list with contact info attached to each task.
+        
+        Args:
+            limit: Max contacts to scan (default 100)
+        """
+        import logging
+        all_tasks = []
+        contacts_scanned = 0
+        page = 1
+        
+        while contacts_scanned < limit:
+            # Fetch a page of contacts
+            try:
+                batch_size = min(100, limit - contacts_scanned)
+                result = self.list_contacts(limit=batch_size, page=page)
+                contacts = result.get("contacts", [])
+            except Exception as e:
+                logging.error(f"Error fetching contacts page {page}: {e}")
+                break
+            
+            if not contacts:
+                break
+            
+            # For each contact, fetch their tasks
+            for contact in contacts:
+                contact_id = contact.get("id")
+                if not contact_id:
+                    continue
+                    
+                try:
+                    tasks_result = self.list_tasks(contact_id)
+                    tasks = tasks_result.get("tasks", [])
+                    
+                    # Attach contact info to each task
+                    for task in tasks:
+                        task["contact"] = {
+                            "id": contact_id,
+                            "firstName": contact.get("firstName", ""),
+                            "lastName": contact.get("lastName", ""),
+                            "email": contact.get("email", ""),
+                            "phone": contact.get("phone", ""),
+                        }
+                        all_tasks.append(task)
+                except Exception as e:
+                    logging.warning(f"Error fetching tasks for contact {contact_id}: {e}")
+                    continue
+            
+            contacts_scanned += len(contacts)
+            page += 1
+            
+            # If we got fewer than requested, we've reached the end
+            if len(contacts) < batch_size:
+                break
+        
+        return {
+            "tasks": all_tasks,
+            "total": len(all_tasks),
+            "contactsScanned": contacts_scanned,
+        }
+
     # ====
     # Tags (under location)
     # ====

@@ -253,6 +253,26 @@ def list_campaigns():
         return jsonify({"error": str(e)}), 500
 
 # ========== Task Management (Tasks are per-contact in GHL) ==========
+@ghl.route('/tasks/all', methods=['GET'])
+@jwt_required()
+def get_all_tasks():
+    """Get all tasks across all contacts.
+    
+    Loops through contacts and fetches their tasks.
+    Query params:
+        - limit: Max contacts to scan (default 100, max 500)
+    """
+    try:
+        client = init_ghl_client()
+        limit = request.args.get('limit', 100, type=int)
+        limit = min(limit, 500)  # Cap at 500 contacts
+        
+        result = client.get_all_tasks(limit=limit)
+        return jsonify(result), 200
+    except Exception as e:
+        logging.error(f"Error fetching all tasks: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 @ghl.route('/contacts/<contact_id>/tasks', methods=['GET'])
 @jwt_required()
 def list_tasks(contact_id):
