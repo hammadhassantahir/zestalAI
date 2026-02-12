@@ -45,6 +45,23 @@ def generate_tokens(user_id=None, force=False):
             redirect_uri=os.environ.get('GHL_REDIRECT_URI')
         )
         
+        # Auto-refresh agency token if expired or expiring soon
+        if agency_token.expires_soon(minutes=30):
+            try:
+                print('🔄 Agency token expired or expiring soon, refreshing...')
+                token_data = oauth_client.refresh_access_token(
+                    agency_token.refresh_token,
+                    agency_token.user_type
+                )
+                agency_token.update_tokens(token_data)
+                from app.extensions import db as _db
+                _db.session.commit()
+                print('✅ Agency token refreshed successfully')
+            except Exception as e:
+                print(f'❌ Failed to refresh agency token: {e}')
+                print('   Please re-authorize at: /api/crm/install')
+                return False
+        
         # Get users
         if user_id:
             users = User.query.filter_by(id=user_id).all()
