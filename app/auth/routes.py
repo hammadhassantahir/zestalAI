@@ -110,6 +110,22 @@ def signup():
                         client_secret=current_app.config.get('GHL_CLIENT_SECRET'),
                         redirect_uri=current_app.config.get('GHL_REDIRECT_URI')
                     )
+                    
+                    # Auto-refresh agency token if expired or expiring soon
+                    if agency_token.expires_soon(minutes=30):
+                        try:
+                            logging.info('Agency token expired or expiring soon, refreshing...')
+                            refresh_data = oauth_client.refresh_access_token(
+                                agency_token.refresh_token,
+                                agency_token.user_type
+                            )
+                            agency_token.update_tokens(refresh_data)
+                            db.session.commit()
+                            logging.info('Agency token refreshed successfully during signup')
+                        except Exception as refresh_err:
+                            logging.error(f"Failed to refresh agency token during signup: {refresh_err}")
+                            # Continue anyway - the token might still work
+                    
                     location_token_data = oauth_client.get_location_token_from_company(
                         company_access_token=agency_token.access_token,
                         company_id=agency_token.company_id,
@@ -117,9 +133,9 @@ def signup():
                     )
                     logging.info(f'Generated OAuth token for location: {locationId}')
                 else:
-                    logging.warning('No agency OAuth token - user will need to authorize separately')
+                    logging.warning('No agency OAuth token found in DB - user will need to authorize separately. Visit /api/crm/install to set up.')
             except Exception as e:
-                logging.error(f"Failed to generate location OAuth token: {e}")
+                logging.error(f"Failed to generate location OAuth token for location {locationId}: {e}")
                 location_token_data = None
                 
         except Exception as e:
@@ -274,6 +290,50 @@ def facebook_login():
             db.session.add(user)
             db.session.commit()
             logging.info(f"New Facebook user created: {email}")
+            
+            # Generate GHL OAuth token for this location
+            if locationId:
+                try:
+                    from app.models.ghl_token import GHLToken
+                    from app.script.ghl_oauth import GHLOAuthClient
+                    
+                    agency_token = GHLToken.get_agency_token()
+                    if agency_token:
+                        oauth_client = GHLOAuthClient(
+                            client_id=current_app.config.get('GHL_CLIENT_ID'),
+                            client_secret=current_app.config.get('GHL_CLIENT_SECRET'),
+                            redirect_uri=current_app.config.get('GHL_REDIRECT_URI')
+                        )
+                        
+                        # Auto-refresh agency token if expired or expiring soon
+                        if agency_token.expires_soon(minutes=30):
+                            try:
+                                logging.info('Agency token expired or expiring soon, refreshing (FB signup)...')
+                                refresh_data = oauth_client.refresh_access_token(
+                                    agency_token.refresh_token,
+                                    agency_token.user_type
+                                )
+                                agency_token.update_tokens(refresh_data)
+                                db.session.commit()
+                                logging.info('Agency token refreshed successfully during FB signup')
+                            except Exception as refresh_err:
+                                logging.error(f"Failed to refresh agency token during FB signup: {refresh_err}")
+                        
+                        location_token_data = oauth_client.get_location_token_from_company(
+                            company_access_token=agency_token.access_token,
+                            company_id=agency_token.company_id,
+                            location_id=locationId
+                        )
+                        GHLToken.create_location_token(
+                            location_id=locationId,
+                            token_data=location_token_data,
+                            app_user_id=user.id
+                        )
+                        logging.info(f'Stored GHL location token for FB user {user.id}')
+                    else:
+                        logging.warning('No agency OAuth token - FB user will need to authorize separately')
+                except Exception as e:
+                    logging.error(f"Failed to generate GHL token for FB user {user.id}: {e}")
 
             # Run runQuickService in background thread
             app = current_app._get_current_object()
