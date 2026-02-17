@@ -328,7 +328,7 @@ def zestal_webhook():
 
 @main.route('/zestal/loglead', methods=['POST'])
 def log_lead():
-    """Log lead information from the landing page form."""
+    """Log lead information from the landing page form and create GHL contact."""
     try:
         data = request.get_json()
         
@@ -351,7 +351,7 @@ def log_lead():
             "referenceCode": data.get('referenceCode', '')
         }
         
-        # Log the lead data to file (you can modify this to store in database)
+        # Log the lead data to file
         fileName = 'zestal_leads.json'
         filePath = os.path.join(current_app.root_path, 'static', fileName)
         
@@ -375,16 +375,83 @@ def log_lead():
         with open(filePath, 'w') as f:
             json.dump(existing_data, f, indent=4)
         
-        print('Lead logged:', lead_data)
+        logging.info(f"Lead logged: {lead_data}")
         
-        return jsonify({
+        # Create contact on GoHighLevel if referenceCode is provided
+        ghl_result = None
+        reference_code = lead_data.get('referenceCode', '')
+        
+        if reference_code:
+            try:
+                # Find the user whose code matches the referenceCode
+                ref_user = User.query.filter_by(code=reference_code).first()
+                
+                if not ref_user:
+                    logging.warning(f"No user found with referenceCode: {reference_code}")
+                elif not ref_user.ghl_location_id:
+                    logging.warning(f"User {ref_user.id} has no GHL location configured")
+                else:
+                    # Get the GHL OAuth token for this user's location
+                    from app.models.ghl_token import GHLToken
+                    from app.script.highLevelAPI import LeadConnectorClient
+                    
+                    ghl_token = GHLToken.get_by_location(ref_user.ghl_location_id)
+                    
+                    if not ghl_token:
+                        logging.warning(f"No GHL token found for location {ref_user.ghl_location_id}")
+                    else:
+                        # Refresh token if expiring soon
+                        if ghl_token.expires_soon(minutes=30):
+                            try:
+                                from app.script.ghl_oauth import GHLOAuthClient
+                                oauth_client = GHLOAuthClient(
+                                    client_id=current_app.config.get('GHL_CLIENT_ID'),
+                                    client_secret=current_app.config.get('GHL_CLIENT_SECRET'),
+                                    redirect_uri=current_app.config.get('GHL_REDIRECT_URI')
+                                )
+                                token_data = oauth_client.refresh_access_token(
+                                    ghl_token.refresh_token,
+                                    ghl_token.user_type
+                                )
+                                ghl_token.update_tokens(token_data)
+                                db.session.commit()
+                                logging.info(f"Refreshed GHL token for location {ref_user.ghl_location_id}")
+                            except Exception as refresh_err:
+                                logging.error(f"Failed to refresh GHL token: {refresh_err}")
+                        
+                        # Initialize GHL client and create contact
+                        client = LeadConnectorClient(
+                            access_token=ghl_token.access_token,
+                            location_id=ref_user.ghl_location_id
+                        )
+                        
+                        contact_data = {
+                            "firstName": lead_data['firstName'],
+                            "email": lead_data['email'],
+                            "phone": lead_data['phone'],
+                            "source": "Zestal Builder Facebook Comments"
+                        }
+                        
+                        ghl_result = client.create_contact(contact_data)
+                        logging.info(f"GHL contact created for lead {lead_data['email']}: {ghl_result}")
+                        
+            except Exception as ghl_err:
+                logging.error(f"Error creating GHL contact: {str(ghl_err)}")
+                ghl_result = {"error": str(ghl_err)}
+        
+        response_data = {
             "message": "Lead logged successfully",
             "status": "success",
             "data": lead_data
-        }), 200
+        }
+        
+        if ghl_result:
+            response_data["ghl_contact"] = ghl_result
+        
+        return jsonify(response_data), 200
         
     except Exception as e:
-        print(f"Error logging lead: {str(e)}")
+        logging.error(f"Error logging lead: {str(e)}")
         return jsonify({
             "error": "Failed to log lead",
             "details": str(e),
