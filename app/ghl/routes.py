@@ -3,6 +3,7 @@ from app.script.highLevelAPI import LeadConnectorClient
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.user import User
 from app.models.ghl_token import GHLToken
+from app.models.ghl_task import GHLTask
 from app.extensions import db
 from functools import wraps
 import logging
@@ -288,7 +289,7 @@ def list_tasks(contact_id):
 @ghl.route('/contacts/<contact_id>/tasks', methods=['POST'])
 @jwt_required()
 def create_task(contact_id):
-    """Create a new task for a contact"""
+    """Create a new task for a contact and save locally"""
     try:
         data = request.get_json()
         if not data:
@@ -296,6 +297,38 @@ def create_task(contact_id):
         
         client = init_ghl_client()
         task = client.create_task(contact_id, data)
+        
+        # Save to local DB after GHL success
+        try:
+            user_id = get_jwt_identity()
+            # Try to get contact info for caching
+            contact_info = None
+            try:
+                contact_data = client.get_contact(contact_id)
+                c = contact_data.get('contact', contact_data)
+                contact_info = {
+                    'firstName': c.get('firstName', ''),
+                    'lastName': c.get('lastName', ''),
+                    'email': c.get('email', ''),
+                    'phone': c.get('phone', ''),
+                }
+            except Exception:
+                pass
+
+            ghl_task_data = task.get('task', task)
+            local_task = GHLTask.from_ghl_response(
+                ghl_data=ghl_task_data,
+                user_id=user_id,
+                contact_id=contact_id,
+                contact_info=contact_info,
+            )
+            db.session.add(local_task)
+            db.session.commit()
+            logging.info(f"Saved task {local_task.ghl_task_id} locally")
+        except Exception as local_err:
+            db.session.rollback()
+            logging.warning(f"GHL task created but local save failed: {local_err}")
+        
         return jsonify(task), 201
     except Exception as e:
         logging.error(f"Error creating task: {str(e)}")
@@ -316,7 +349,7 @@ def get_task(contact_id, task_id):
 @ghl.route('/contacts/<contact_id>/tasks/<task_id>', methods=['PUT'])
 @jwt_required()
 def update_task(contact_id, task_id):
-    """Update an existing task"""
+    """Update an existing task on GHL and locally"""
     try:
         data = request.get_json()
         if not data:
@@ -324,6 +357,19 @@ def update_task(contact_id, task_id):
         
         client = init_ghl_client()
         task = client.update_task(contact_id, task_id, data)
+        
+        # Sync update to local DB
+        try:
+            local_task = GHLTask.query.filter_by(ghl_task_id=task_id).first()
+            if local_task:
+                ghl_task_data = task.get('task', task)
+                local_task.update_from_ghl(ghl_task_data)
+                db.session.commit()
+                logging.info(f"Updated local task {task_id}")
+        except Exception as local_err:
+            db.session.rollback()
+            logging.warning(f"GHL task updated but local sync failed: {local_err}")
+        
         return jsonify(task), 200
     except Exception as e:
         logging.error(f"Error updating task {task_id}: {str(e)}")
@@ -332,10 +378,22 @@ def update_task(contact_id, task_id):
 @ghl.route('/contacts/<contact_id>/tasks/<task_id>', methods=['DELETE'])
 @jwt_required()
 def delete_task(contact_id, task_id):
-    """Delete a task"""
+    """Delete a task from GHL and locally"""
     try:
         client = init_ghl_client()
         client.delete_task(contact_id, task_id)
+        
+        # Remove from local DB
+        try:
+            local_task = GHLTask.query.filter_by(ghl_task_id=task_id).first()
+            if local_task:
+                db.session.delete(local_task)
+                db.session.commit()
+                logging.info(f"Deleted local task {task_id}")
+        except Exception as local_err:
+            db.session.rollback()
+            logging.warning(f"GHL task deleted but local removal failed: {local_err}")
+        
         return jsonify({"message": "Task deleted successfully"}), 200
     except Exception as e:
         logging.error(f"Error deleting task {task_id}: {str(e)}")
@@ -344,16 +402,106 @@ def delete_task(contact_id, task_id):
 @ghl.route('/contacts/<contact_id>/tasks/<task_id>/completed', methods=['PUT'])
 @jwt_required()
 def complete_task(contact_id, task_id):
-    """Mark a task as completed or incomplete"""
+    """Mark a task as completed or incomplete on GHL and locally"""
     try:
         data = request.get_json() or {}
         completed = data.get('completed', True)
         
         client = init_ghl_client()
         task = client.complete_task(contact_id, task_id, completed)
+        
+        # Sync completed status locally
+        try:
+            local_task = GHLTask.query.filter_by(ghl_task_id=task_id).first()
+            if local_task:
+                local_task.completed = completed
+                db.session.commit()
+                logging.info(f"Updated local task {task_id} completed={completed}")
+        except Exception as local_err:
+            db.session.rollback()
+            logging.warning(f"GHL task completed but local sync failed: {local_err}")
+        
         return jsonify(task), 200
     except Exception as e:
         logging.error(f"Error completing task {task_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ========== Local Task Routes (read from local DB only) ==========
+@ghl.route('/local/tasks', methods=['GET'])
+@jwt_required()
+def list_local_tasks():
+    """List all tasks from local DB for the current user.
+    
+    Query params:
+        - page: Page number (default 1)
+        - per_page: Items per page (default 50, max 200)
+        - completed: Filter by completed status (true/false)
+        - contact_id: Filter by GHL contact ID
+    """
+    try:
+        user_id = get_jwt_identity()
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 50, type=int), 200)
+
+        query = GHLTask.query.filter_by(user_id=user_id)
+
+        # Optional filters
+        completed_filter = request.args.get('completed')
+        if completed_filter is not None:
+            query = query.filter_by(completed=completed_filter.lower() == 'true')
+
+        contact_id_filter = request.args.get('contact_id')
+        if contact_id_filter:
+            query = query.filter_by(ghl_contact_id=contact_id_filter)
+
+        query = query.order_by(GHLTask.created_at.desc())
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+        return jsonify({
+            'tasks': [t.to_dict() for t in pagination.items],
+            'total': pagination.total,
+            'page': pagination.page,
+            'per_page': pagination.per_page,
+            'pages': pagination.pages,
+        }), 200
+    except Exception as e:
+        logging.error(f"Error listing local tasks: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@ghl.route('/local/tasks/<int:task_id>', methods=['GET'])
+@jwt_required()
+def get_local_task(task_id):
+    """Get a single task from local DB by its local ID."""
+    try:
+        user_id = get_jwt_identity()
+        task = GHLTask.query.filter_by(id=task_id, user_id=user_id).first()
+        if not task:
+            return jsonify({"error": "Task not found"}), 404
+        return jsonify(task.to_dict()), 200
+    except Exception as e:
+        logging.error(f"Error getting local task {task_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@ghl.route('/local/contacts/<contact_id>/tasks', methods=['GET'])
+@jwt_required()
+def list_local_contact_tasks(contact_id):
+    """List local tasks for a specific GHL contact."""
+    try:
+        user_id = get_jwt_identity()
+        tasks = GHLTask.query.filter_by(
+            user_id=user_id,
+            ghl_contact_id=contact_id
+        ).order_by(GHLTask.created_at.desc()).all()
+
+        return jsonify({
+            'tasks': [t.to_dict() for t in tasks],
+            'total': len(tasks),
+        }), 200
+    except Exception as e:
+        logging.error(f"Error listing local tasks for contact {contact_id}: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
