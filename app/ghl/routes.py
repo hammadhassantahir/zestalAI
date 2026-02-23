@@ -450,12 +450,49 @@ def list_local_tasks():
         completed_filter = request.args.get('completed')
         if completed_filter is not None:
             query = query.filter_by(completed=completed_filter.lower() == 'true')
+            
+        # Due Date / Pending Filtering
+        due_date_str = request.args.get('due_date') # Format: YYYY-MM-DD
+        pending_today = request.args.get('pending_today', '').lower() == 'true'
+        
+        if pending_today:
+            # Force completed=False and due_date = today if 'pending_today' flag is passed
+            query = query.filter_by(completed=False)
+            from datetime import datetime, timezone
+            today = datetime.now(timezone.utc).date()
+            query = query.filter(db.func.date(GHLTask.due_date) == today)
+        elif due_date_str:
+            # Only filter due_date if pending_today wasn't used
+            try:
+                from datetime import datetime
+                target_date = datetime.strptime(due_date_str, '%Y-%m-%d').date()
+                query = query.filter(db.func.date(GHLTask.due_date) == target_date)
+            except ValueError:
+                logging.warning(f"Invalid due_date format: {due_date_str}. Expected YYYY-MM-DD.")
 
         contact_id_filter = request.args.get('contact_id')
         if contact_id_filter:
             query = query.filter_by(ghl_contact_id=contact_id_filter)
 
-        query = query.order_by(GHLTask.created_at.desc())
+        # Add support for sorting
+        sort_by = request.args.get('sortBy', 'created_at')
+        sort_order = request.args.get('sortOrder', 'desc').lower()
+
+        valid_sort_columns = {
+            'created_at': GHLTask.created_at,
+            'updated_at': GHLTask.updated_at,
+            'due_date': GHLTask.due_date,
+            'title': GHLTask.title,
+            'completed': GHLTask.completed
+        }
+        
+        sort_column = valid_sort_columns.get(sort_by, GHLTask.created_at)
+        
+        if sort_order == 'asc':
+            query = query.order_by(sort_column.asc())
+        else:
+            query = query.order_by(sort_column.desc())
+
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
         return jsonify({
@@ -491,10 +528,57 @@ def list_local_contact_tasks(contact_id):
     """List local tasks for a specific GHL contact."""
     try:
         user_id = get_jwt_identity()
-        tasks = GHLTask.query.filter_by(
+
+        # Sorting logic
+        sort_by = request.args.get('sortBy', 'created_at')
+        sort_order = request.args.get('sortOrder', 'desc').lower()
+
+        valid_sort_columns = {
+            'created_at': GHLTask.created_at,
+            'updated_at': GHLTask.updated_at,
+            'due_date': GHLTask.due_date,
+            'title': GHLTask.title,
+            'completed': GHLTask.completed
+        }
+        
+        sort_column = valid_sort_columns.get(sort_by, GHLTask.created_at)
+
+        query = GHLTask.query.filter_by(
             user_id=user_id,
             ghl_contact_id=contact_id
-        ).order_by(GHLTask.created_at.desc()).all()
+        )
+
+        # Optional filters
+        completed_filter = request.args.get('completed')
+        if completed_filter is not None:
+            query = query.filter_by(completed=completed_filter.lower() == 'true')
+
+        # Due Date / Pending Filtering
+        due_date_str = request.args.get('due_date') # Format: YYYY-MM-DD
+        pending_today = request.args.get('pending_today', '').lower() == 'true'
+        
+        if pending_today:
+            # Force completed=False and due_date = today if 'pending_today' flag is passed
+            query = query.filter_by(completed=False)
+            from datetime import datetime, timezone
+            today = datetime.now(timezone.utc).date()
+            query = query.filter(db.func.date(GHLTask.due_date) == today)
+        elif due_date_str:
+            # Only filter due_date if pending_today wasn't used
+            try:
+                from datetime import datetime
+                target_date = datetime.strptime(due_date_str, '%Y-%m-%d').date()
+                query = query.filter(db.func.date(GHLTask.due_date) == target_date)
+            except ValueError:
+                logging.warning(f"Invalid due_date format: {due_date_str}. Expected YYYY-MM-DD.")
+
+        # Sorting logic
+        if sort_order == 'asc':
+            query = query.order_by(sort_column.asc())
+        else:
+            query = query.order_by(sort_column.desc())
+
+        tasks = query.all()
 
         return jsonify({
             'tasks': [t.to_dict() for t in tasks],
