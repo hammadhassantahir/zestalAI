@@ -32,6 +32,7 @@ class CallLog(db.Model):
     cost = db.Column(db.Float, nullable=True)
     error_message = db.Column(db.Text, nullable=True)
     lead_context = db.Column(db.Text, nullable=True)  # JSON string
+    template_used = db.Column(db.String(100), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -75,6 +76,7 @@ class CallLog(db.Model):
             'cost': self.cost,
             'error_message': self.error_message,
             'lead_context': lead_ctx,
+            'template_used': self.template_used,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
