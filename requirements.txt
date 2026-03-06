@@ -14,3 +14,5 @@ email-validator==2.0.0.post2
 APScheduler==3.10.4
 langchain-openai
 openai
+twilio
+phonenumbers>=8.13.0
