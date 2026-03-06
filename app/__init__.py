@@ -131,6 +131,10 @@ def create_app(config_class=Config):
     from .webhooks import webhooks_bp
     app.register_blueprint(webhooks_bp, url_prefix='/api/webhooks')
 
+    # Register Analytics blueprint
+    from .analytics import analytics_bp
+    app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
+
     # Register Config blueprint
     from .config_routes import config_bp
     app.register_blueprint(config_bp, url_prefix='/api/config')
