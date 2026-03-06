@@ -103,6 +103,12 @@ def create_app(config_class=Config):
     scheduler = init_scheduler()
     scheduler.init_app(app)
     
+    # Validate required env vars for phone/calling features
+    _required_phone_vars = ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'VAPI_API_KEY', 'VAPI_WEBHOOK_URL']
+    _missing = [v for v in _required_phone_vars if not app.config.get(v)]
+    if _missing:
+        logging.warning(f"Phone/calling features disabled — missing env vars: {', '.join(_missing)}")
+
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(main, url_prefix='/api')
@@ -112,6 +118,22 @@ def create_app(config_class=Config):
     # Register Facebook sync blueprint
     from .facebook import facebook_bp
     app.register_blueprint(facebook_bp, url_prefix='/api/facebook')
+
+    # Register Phone pool blueprint
+    from .phone import phone_bp
+    app.register_blueprint(phone_bp, url_prefix='/api/phone')
+
+    # Register Calls blueprint
+    from .calls import calls_bp
+    app.register_blueprint(calls_bp, url_prefix='/api/calls')
+
+    # Register Webhooks blueprint
+    from .webhooks import webhooks_bp
+    app.register_blueprint(webhooks_bp, url_prefix='/api/webhooks')
+
+    # Register Config blueprint
+    from .config_routes import config_bp
+    app.register_blueprint(config_bp, url_prefix='/api/config')
     
     # Start scheduler after all extensions are initialized
     # Only start scheduler in the main process (not in reloader process)
