@@ -202,7 +202,10 @@ def purchase_number():
     if existing:
         return jsonify({'error': 'Only 1 number per user'}), 400
 
-    result = PhonePoolService.buy_and_add_to_pool(phone_number, country_code)
+    vapi_tag = f"user_{user_id}"
+    if display_name:
+        vapi_tag = f"user_{user_id}_{display_name}"
+    result = PhonePoolService.buy_and_add_to_pool(phone_number, country_code, vapi_name=vapi_tag)
     if 'error' in result:
         return jsonify({'error': result['error']}), 400
 

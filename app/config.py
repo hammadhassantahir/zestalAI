@@ -61,3 +61,17 @@ class Config:
     FACEBOOK_TASK_TIME_MINUTES = int(os.getenv('FACEBOOK_TASK_TIME_MINUTES', 59))
     FACEBOOK_POST_LIMIT = int(os.getenv('FACEBOOK_POST_LIMIT', 50))
     SCRAPER_TASK_TIME_MINUTES = int(os.getenv('SCRAPER_TASK_TIME_MINUTES', 45))
+
+    # Twilio Configuration
+    TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+    TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+
+    # Vapi Configuration
+    VAPI_API_KEY = os.getenv('VAPI_API_KEY')
+    VAPI_WEBHOOK_URL = os.getenv('VAPI_WEBHOOK_URL')
+    VAPI_WEBHOOK_SECRET = os.getenv('VAPI_WEBHOOK_SECRET')
+    VAPI_SHARED_ASSISTANT_ID = os.getenv('VAPI_SHARED_ASSISTANT_ID')
+
+    # Phone Pool Configuration
+    PHONE_POOL_MAX_SIZE = int(os.getenv('PHONE_POOL_MAX_SIZE', 50))
+    PHONE_POOL_AUTO_PROVISION = os.getenv('PHONE_POOL_AUTO_PROVISION', 'true').lower() == 'true'
