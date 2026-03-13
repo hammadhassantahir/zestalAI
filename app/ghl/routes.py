@@ -959,6 +959,18 @@ def remove_tag_from_contact(contact_id, tag_id):
         logging.error(f"Error removing tag from contact {contact_id}: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+# ========== Custom Fields ==========
+@ghl.route('/custom-fields', methods=['GET'])
+@jwt_required()
+def list_custom_fields():
+    try:
+        client = init_ghl_client()
+        fields = client.list_custom_fields()
+        return jsonify(fields), 200
+    except Exception as e:
+        logging.error(f"Error listing custom fields: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 # ========== Contact Campaign Management ==========
 @ghl.route('/contacts/<contact_id>/campaigns/<campaign_id>', methods=['POST'])
 @jwt_required()

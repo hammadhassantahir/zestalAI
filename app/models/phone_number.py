@@ -9,6 +9,7 @@ class PhoneNumber(db.Model):
     # Status constants
     STATUS_AVAILABLE = 'available'
     STATUS_ASSIGNED = 'assigned'
+    STATUS_FROZEN = 'frozen'
     STATUS_RELEASED = 'released'
     STATUS_ERROR = 'error'
 
@@ -23,6 +24,8 @@ class PhoneNumber(db.Model):
     assigned_at = db.Column(db.DateTime, nullable=True)
     vapi_phone_id = db.Column(db.String(100), nullable=True)
     display_name = db.Column(db.String(255), nullable=True)
+    frozen_at = db.Column(db.DateTime, nullable=True)
+    frozen_expires_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -49,6 +52,8 @@ class PhoneNumber(db.Model):
             'assigned_at': self.assigned_at.isoformat() if self.assigned_at else None,
             'vapi_phone_id': self.vapi_phone_id,
             'display_name': self.display_name,
+            'frozen_at': self.frozen_at.isoformat() if self.frozen_at else None,
+            'frozen_expires_at': self.frozen_expires_at.isoformat() if self.frozen_expires_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -62,4 +67,11 @@ class PhoneNumber(db.Model):
 
     @classmethod
     def get_by_user(cls, user_id):
-        return cls.query.filter_by(user_id=user_id, status=cls.STATUS_ASSIGNED).all()
+        return cls.query.filter(
+            cls.user_id == user_id,
+            cls.status.in_([cls.STATUS_ASSIGNED, cls.STATUS_FROZEN])
+        ).all()
+
+    @classmethod
+    def get_active_by_user(cls, user_id):
+        return cls.query.filter_by(user_id=user_id, status=cls.STATUS_ASSIGNED).first()

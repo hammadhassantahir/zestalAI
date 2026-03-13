@@ -59,7 +59,7 @@ def analyze_call(call_log_id):
             interest_level=result.get('interest_level'),
             objections=json.dumps(result.get('objections', [])),
             success_evaluation=result.get('success_evaluation'),
-            extraction_status='completed',
+            extraction_status=CallAnalytics.STATUS_COMPLETED,
         )
 
         # Store Vapi structured data if available
@@ -81,7 +81,7 @@ def analyze_call(call_log_id):
         analytics = CallAnalytics(
             call_log_id=call.id,
             user_id=call.user_id,
-            extraction_status='failed',
+            extraction_status=CallAnalytics.STATUS_FAILED,
         )
         db.session.add(analytics)
         db.session.commit()

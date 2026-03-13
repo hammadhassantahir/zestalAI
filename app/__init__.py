@@ -138,6 +138,10 @@ def create_app(config_class=Config):
     # Register Config blueprint
     from .config_routes import config_bp
     app.register_blueprint(config_bp, url_prefix='/api/config')
+
+    # Register SMS blueprint
+    from .sms.routes import sms_bp
+    app.register_blueprint(sms_bp, url_prefix='/api/sms')
     
     # Start scheduler after all extensions are initialized
     # Only start scheduler in the main process (not in reloader process)

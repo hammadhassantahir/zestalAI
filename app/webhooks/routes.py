@@ -104,9 +104,6 @@ def _handle_end_of_call_report(vapi_call_id, message):
     if analysis:
         call.structured_data = json.dumps(analysis)
 
-    db.session.commit()
-    logger.info(f"Call {vapi_call_id} end-of-call report processed (duration: {call.duration_seconds}s)")
-
     # Create CallResult if this call used a template-based assistant (backward compat)
     template_name = None
     if call.template_used:
@@ -126,8 +123,9 @@ def _handle_end_of_call_report(vapi_call_id, message):
             extraction_status=CallResult.STATUS_COMPLETED if structured else CallResult.STATUS_FAILED,
         )
         db.session.add(call_result)
-        db.session.commit()
-        logger.info(f"CallResult created for call {vapi_call_id} (template: {template_name})")
+
+    db.session.commit()
+    logger.info(f"Call {vapi_call_id} end-of-call report processed (duration: {call.duration_seconds}s)")
 
     # trigger async LLM analysis
     try:
@@ -170,7 +168,7 @@ def _handle_hang(vapi_call_id, message):
         logger.warning(f"CallLog not found for vapi_call_id: {vapi_call_id}")
         return
 
-    call.status = 'hang'
+    call.status = CallLog.STATUS_HANG
     db.session.commit()
     logger.info(f"Call {vapi_call_id} hang event received")
 

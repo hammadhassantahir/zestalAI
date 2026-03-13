@@ -1,9 +1,12 @@
+import io
+import csv
 import logging
 from datetime import datetime
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
 from ..models.phone_number import PhoneNumber
+from ..models.call_log import CallLog
 from ..services.twilio_service import TwilioService
 from ..services.phone_pool_service import PhonePoolService
 
@@ -167,6 +170,84 @@ def my_numbers():
     return jsonify({'phone_numbers': [n.to_dict() for n in numbers]}), 200
 
 
+@phone_bp.route('/my-numbers/<int:phone_id>', methods=['PUT'])
+@jwt_required()
+def update_number(phone_id):
+    user_id = get_jwt_identity()
+    data = request.get_json() or {}
+
+    phone = PhoneNumber.query.filter(
+        PhoneNumber.id == phone_id,
+        PhoneNumber.user_id == user_id,
+        PhoneNumber.status.in_([PhoneNumber.STATUS_ASSIGNED, PhoneNumber.STATUS_FROZEN])
+    ).first()
+    if not phone:
+        return jsonify({'error': 'Phone number not found'}), 404
+
+    if 'display_name' in data:
+        phone.display_name = data['display_name']
+        db.session.commit()
+
+    return jsonify({'success': True, 'phone_number': phone.to_dict()}), 200
+
+
+@phone_bp.route('/my-numbers/<int:phone_id>', methods=['DELETE'])
+@jwt_required()
+def freeze_number(phone_id):
+    user_id = get_jwt_identity()
+    result = PhonePoolService.freeze_number(phone_id, user_id)
+    if 'error' in result:
+        return jsonify({'error': result['error']}), 400
+    return jsonify(result), 200
+
+
+@phone_bp.route('/my-numbers/<int:phone_id>/restore', methods=['POST'])
+@jwt_required()
+def restore_number(phone_id):
+    user_id = get_jwt_identity()
+    result = PhonePoolService.restore_number(phone_id, user_id)
+    if 'error' in result:
+        return jsonify({'error': result['error']}), 400
+    return jsonify(result), 200
+
+
+@phone_bp.route('/my-numbers/<int:phone_id>/export-logs', methods=['GET'])
+@jwt_required()
+def export_call_logs(phone_id):
+    user_id = get_jwt_identity()
+
+    phone = PhoneNumber.query.filter(
+        PhoneNumber.id == phone_id,
+        PhoneNumber.user_id == user_id,
+        PhoneNumber.status.in_([PhoneNumber.STATUS_ASSIGNED, PhoneNumber.STATUS_FROZEN])
+    ).first()
+    if not phone:
+        return jsonify({'error': 'Phone number not found'}), 404
+
+    logs = CallLog.query.filter_by(
+        user_id=user_id,
+        phone_number_id=phone_id,
+    ).order_by(CallLog.created_at.desc()).all()
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(['id', 'customer_number', 'direction', 'status', 'duration_seconds',
+                     'template_used', 'created_at', 'summary'])
+    for log in logs:
+        writer.writerow([
+            log.id, log.customer_number, log.direction, log.status,
+            log.duration_seconds or '', log.template_used or '',
+            log.created_at.isoformat() if log.created_at else '',
+            (log.summary or '').replace('\n', ' '),
+        ])
+
+    return Response(
+        buf.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename=call_logs_phone_{phone_id}.csv'}
+    )
+
+
 @phone_bp.route('/available', methods=['GET'])
 @jwt_required()
 def search_available():
@@ -197,19 +278,18 @@ def purchase_number():
     if not phone_number:
         return jsonify({'error': 'phone_number is required'}), 400
 
-    # only 1 number per user
-    existing = PhoneNumber.get_by_user(user_id)
-    if existing:
-        return jsonify({'error': 'Only 1 number per user'}), 400
+    # only 1 active number per user (frozen don't count)
+    active = PhoneNumber.get_active_by_user(user_id)
+    if active:
+        return jsonify({'error': 'You already have an active number. Freeze it first.'}), 400
 
-    vapi_tag = f"user_{user_id}"
-    if display_name:
-        vapi_tag = f"user_{user_id}_{display_name}"
+    from ..models.user import User
+    user = User.query.get(user_id)
+    vapi_tag = f"{user_id}-{user.first_name} {user.last_name}"
     result = PhonePoolService.buy_and_add_to_pool(phone_number, country_code, vapi_name=vapi_tag)
     if 'error' in result:
         return jsonify({'error': result['error']}), 400
 
-    # assign to user
     phone = PhoneNumber.query.filter_by(phone_number=phone_number).first()
     phone.status = PhoneNumber.STATUS_ASSIGNED
     phone.user_id = user_id
@@ -218,30 +298,3 @@ def purchase_number():
     db.session.commit()
 
     return jsonify({'success': True, 'phone_number': phone.to_dict()}), 201
-
-
-@phone_bp.route('/my-number', methods=['GET'])
-@jwt_required()
-def my_number():
-    user_id = get_jwt_identity()
-    numbers = PhoneNumber.get_by_user(user_id)
-    phone = numbers[0] if numbers else None
-    return jsonify({'phone_number': phone.to_dict() if phone else None}), 200
-
-
-@phone_bp.route('/my-number', methods=['PUT'])
-@jwt_required()
-def update_my_number():
-    user_id = get_jwt_identity()
-    data = request.get_json() or {}
-
-    numbers = PhoneNumber.get_by_user(user_id)
-    if not numbers:
-        return jsonify({'error': 'No number assigned'}), 404
-
-    phone = numbers[0]
-    if 'display_name' in data:
-        phone.display_name = data['display_name']
-        db.session.commit()
-
-    return jsonify({'success': True, 'phone_number': phone.to_dict()}), 200

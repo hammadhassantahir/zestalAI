@@ -6,6 +6,16 @@ import json
 class CallAnalytics(db.Model):
     __tablename__ = 'call_analytics'
 
+    SENTIMENT_POSITIVE = 'positive'
+    SENTIMENT_NEGATIVE = 'negative'
+    SENTIMENT_NEUTRAL = 'neutral'
+    SUCCESS_YES = 'yes'
+    SUCCESS_NO = 'no'
+    SUCCESS_PARTIAL = 'partial'
+    STATUS_PENDING = 'pending'
+    STATUS_COMPLETED = 'completed'
+    STATUS_FAILED = 'failed'
+
     id = db.Column(db.Integer, primary_key=True)
     call_log_id = db.Column(db.Integer, db.ForeignKey('call_logs.id'), unique=True, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)

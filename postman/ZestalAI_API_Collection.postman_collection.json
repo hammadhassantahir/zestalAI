@@ -1,0 +1,3291 @@
+{
+    "info": {
+        "_postman_id": "zestal-api-2026-02-01",
+        "name": "ZestalAI API Collection",
+        "description": "Comprehensive API collection for ZestalAI - includes Authentication, Profiles, Social Media, Facebook Sync, GHL CRM, Scheduler, Phone Pool Management, AI Voice Assistants, Outbound Calling, Call Results, and Vapi Webhooks.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:5001",
+            "type": "string"
+        },
+        {
+            "key": "access_token",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "user_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "phone_id",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "assistant_id",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "call_id",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "job_id",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "webhook_secret",
+            "value": "",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "1. Authentication",
+            "description": "Authentication endpoints for user login, signup, and token management.",
+            "item": [
+                {
+                    "name": "Login",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.access_token) { pm.collectionVariables.set('access_token', jsonData.access_token); }",
+                                    "if (jsonData.user && jsonData.user.id) { pm.collectionVariables.set('user_id', jsonData.user.id.toString()); }"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"password123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "login"
+                            ]
+                        },
+                        "description": "Authenticates a user using email and password. Returns JWT token and user info."
+                    }
+                },
+                {
+                    "name": "Sign Up",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.access_token) { pm.collectionVariables.set('access_token', jsonData.access_token); }",
+                                    "if (jsonData.user && jsonData.user.id) { pm.collectionVariables.set('user_id', jsonData.user.id.toString()); }"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"user@example.com\",\n    \"password\": \"password123\",\n    \"code\": \"\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/signup",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "signup"
+                            ]
+                        },
+                        "description": "Registers a new user account."
+                    }
+                },
+                {
+                    "name": "Check Email",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"user@example.com\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/check-email",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "check-email"
+                            ]
+                        },
+                        "description": "Checks if an email address is already registered."
+                    }
+                },
+                {
+                    "name": "Verify Token",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/verify",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "verify"
+                            ]
+                        },
+                        "description": "Verifies if the current JWT token is valid."
+                    }
+                },
+                {
+                    "name": "Set Code",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"code\": \"your_code_here\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/setcode",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "setcode"
+                            ]
+                        },
+                        "description": "Sets the user code for the authenticated user."
+                    }
+                },
+                {
+                    "name": "Facebook Login",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.access_token) { pm.collectionVariables.set('access_token', jsonData.access_token); }"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"access_token\": \"EAACEdEose0cBA...\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/facebook/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "facebook",
+                                "login"
+                            ]
+                        },
+                        "description": "Authenticates a user using a Facebook access token."
+                    }
+                },
+                {
+                    "name": "Refresh Facebook Token",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"access_token\": \"short_lived_token\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/facebook/refresh-token",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "facebook",
+                                "refresh-token"
+                            ]
+                        },
+                        "description": "Refreshes the user's Facebook access token."
+                    }
+                },
+                {
+                    "name": "Check Facebook Token",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/facebook/check-token",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "facebook",
+                                "check-token"
+                            ]
+                        },
+                        "description": "Checks the status of the user's Facebook token."
+                    }
+                },
+                {
+                    "name": "Fetch Facebook Posts",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"limit\": 50\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/facebook/fetch-posts",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "facebook",
+                                "fetch-posts"
+                            ]
+                        },
+                        "description": "Fetch user's Facebook posts and save to database."
+                    }
+                },
+                {
+                    "name": "Get Facebook Posts",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/facebook/posts?limit=20&offset=0",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "facebook",
+                                "posts"
+                            ],
+                            "query": [
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                },
+                                {
+                                    "key": "offset",
+                                    "value": "0"
+                                }
+                            ]
+                        },
+                        "description": "Get user's Facebook posts from database."
+                    }
+                },
+                {
+                    "name": "Fetch Post Comments",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"limit\": 25\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/facebook/posts/:post_id/fetch-comments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "facebook",
+                                "posts",
+                                ":post_id",
+                                "fetch-comments"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "post_id",
+                                    "value": "1"
+                                }
+                            ]
+                        },
+                        "description": "Fetch comments for a specific Facebook post."
+                    }
+                },
+                {
+                    "name": "Facebook Webhook",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/facebook/webhook?hub.mode=subscribe&hub.verify_token=YOUR_VERIFY_TOKEN&hub.challenge=CHALLENGE_STRING",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "facebook",
+                                "webhook"
+                            ],
+                            "query": [
+                                {
+                                    "key": "hub.mode",
+                                    "value": "subscribe"
+                                },
+                                {
+                                    "key": "hub.verify_token",
+                                    "value": "YOUR_VERIFY_TOKEN"
+                                },
+                                {
+                                    "key": "hub.challenge",
+                                    "value": "CHALLENGE_STRING"
+                                }
+                            ]
+                        },
+                        "description": "Facebook webhook verification endpoint."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "2. User Profile",
+            "description": "User profile management endpoints.",
+            "item": [
+                {
+                    "name": "Get User Profile",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/profiles/{{user_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "profiles",
+                                "{{user_id}}"
+                            ]
+                        },
+                        "description": "Retrieves profile information for a specific user."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "3. Social Media",
+            "description": "Social media posts and comments endpoints.",
+            "item": [
+                {
+                    "name": "Get Social Posts",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/social/posts",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "social",
+                                "posts"
+                            ]
+                        },
+                        "description": "Retrieves all social media posts with nested comments and AI replies."
+                    }
+                },
+                {
+                    "name": "Sync Social Media",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/social/sync",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "social",
+                                "sync"
+                            ]
+                        },
+                        "description": "Triggers social media synchronization (posts + comments in background)."
+                    }
+                },
+                {
+                    "name": "Mark Post Seen",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/social/posts/:post_id/seen",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "social",
+                                "posts",
+                                ":post_id",
+                                "seen"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "post_id",
+                                    "value": "1"
+                                }
+                            ]
+                        },
+                        "description": "Marks a post as seen and its comments as not new."
+                    }
+                },
+                {
+                    "name": "Generate Comment Reply",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/social/comments/:comment_id/generate-reply",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "social",
+                                "comments",
+                                ":comment_id",
+                                "generate-reply"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "comment_id",
+                                    "value": "c1"
+                                }
+                            ]
+                        },
+                        "description": "Generates an AI reply for a specific comment."
+                    }
+                },
+                {
+                    "name": "Trigger Scrape (Background)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/scrape",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "scrape"
+                            ]
+                        },
+                        "description": "Triggers a background task to scrape comments for all verified users."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "4. Facebook Sync",
+            "description": "Facebook data synchronization endpoints for manual control.",
+            "item": [
+                {
+                    "name": "Manual Sync Posts",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/facebook/sync/posts",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "facebook",
+                                "sync",
+                                "posts"
+                            ]
+                        },
+                        "description": "Triggers a background job to sync Facebook posts."
+                    }
+                },
+                {
+                    "name": "Manual Sync Comments",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/facebook/sync/comments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "facebook",
+                                "sync",
+                                "comments"
+                            ]
+                        },
+                        "description": "Triggers a background job to sync comments for all posts."
+                    }
+                },
+                {
+                    "name": "Manual Full Sync",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/facebook/sync/all",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "facebook",
+                                "sync",
+                                "all"
+                            ]
+                        },
+                        "description": "Triggers a full synchronization (posts + comments)."
+                    }
+                },
+                {
+                    "name": "Get Facebook Stats",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/facebook/stats",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "facebook",
+                                "stats"
+                            ]
+                        },
+                        "description": "Gets synchronization statistics."
+                    }
+                },
+                {
+                    "name": "Get Jobs",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/facebook/jobs?limit=20&status=",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "facebook",
+                                "jobs"
+                            ],
+                            "query": [
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                },
+                                {
+                                    "key": "status",
+                                    "value": ""
+                                }
+                            ]
+                        },
+                        "description": "Lists background jobs for the user."
+                    }
+                },
+                {
+                    "name": "Get Job Status",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/facebook/jobs/:job_id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "facebook",
+                                "jobs",
+                                ":job_id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "job_id",
+                                    "value": "1"
+                                }
+                            ]
+                        },
+                        "description": "Get status of a specific background job."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "5. GoHighLevel (GHL)",
+            "description": "GoHighLevel integration endpoints.",
+            "item": [
+                {
+                    "name": "Contacts",
+                    "item": [
+                        {
+                            "name": "List Contacts",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/contacts?limit=10&page=1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "contacts"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "limit",
+                                            "value": "10"
+                                        },
+                                        {
+                                            "key": "page",
+                                            "value": "1"
+                                        }
+                                    ]
+                                },
+                                "description": "Lists contacts from GoHighLevel."
+                            }
+                        },
+                        {
+                            "name": "Get Contact",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/contacts/:contact_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "contacts",
+                                        ":contact_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "contact_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Get a specific contact by ID."
+                            }
+                        },
+                        {
+                            "name": "Create Contact",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john@example.com\",\n    \"phone\": \"+1234567890\",\n    \"tags\": [\"lead\", \"facebook\"]\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/contacts",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "contacts"
+                                    ]
+                                },
+                                "description": "Creates a new contact."
+                            }
+                        },
+                        {
+                            "name": "Update Contact",
+                            "request": {
+                                "method": "PUT",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"firstName\": \"John\",\n    \"lastName\": \"Updated\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/contacts/:contact_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "contacts",
+                                        ":contact_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "contact_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Update an existing contact."
+                            }
+                        },
+                        {
+                            "name": "Delete Contact",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/contacts/:contact_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "contacts",
+                                        ":contact_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "contact_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Delete a contact."
+                            }
+                        },
+                        {
+                            "name": "Add Tags to Contact",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"tags\": [\"tag1\", \"tag2\"]\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/contacts/:contact_id/tags",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "contacts",
+                                        ":contact_id",
+                                        "tags"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "contact_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Add tags to a contact."
+                            }
+                        },
+                        {
+                            "name": "Remove Tag from Contact",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/contacts/:contact_id/tags/:tag_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "contacts",
+                                        ":contact_id",
+                                        "tags",
+                                        ":tag_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "contact_id",
+                                            "value": ""
+                                        },
+                                        {
+                                            "key": "tag_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Remove a tag from a contact."
+                            }
+                        },
+                        {
+                            "name": "Add Contact to Campaign",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/contacts/:contact_id/campaigns/:campaign_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "contacts",
+                                        ":contact_id",
+                                        "campaigns",
+                                        ":campaign_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "contact_id",
+                                            "value": ""
+                                        },
+                                        {
+                                            "key": "campaign_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Add contact to a campaign."
+                            }
+                        },
+                        {
+                            "name": "Remove Contact from Campaign",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/contacts/:contact_id/campaigns/:campaign_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "contacts",
+                                        ":contact_id",
+                                        "campaigns",
+                                        ":campaign_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "contact_id",
+                                            "value": ""
+                                        },
+                                        {
+                                            "key": "campaign_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Remove contact from a campaign."
+                            }
+                        },
+                        {
+                            "name": "Add Contact to Workflow",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"eventStartTime\": \"2026-01-01T00:00:00Z\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/contacts/:contact_id/workflows/:workflow_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "contacts",
+                                        ":contact_id",
+                                        "workflows",
+                                        ":workflow_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "contact_id",
+                                            "value": ""
+                                        },
+                                        {
+                                            "key": "workflow_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Add contact to a workflow."
+                            }
+                        },
+                        {
+                            "name": "Remove Contact from Workflow",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/contacts/:contact_id/workflows/:workflow_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "contacts",
+                                        ":contact_id",
+                                        "workflows",
+                                        ":workflow_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "contact_id",
+                                            "value": ""
+                                        },
+                                        {
+                                            "key": "workflow_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Remove contact from a workflow."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Tasks",
+                    "item": [
+                        {
+                            "name": "List Tasks",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/tasks?limit=10&page=1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "tasks"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "limit",
+                                            "value": "10"
+                                        },
+                                        {
+                                            "key": "page",
+                                            "value": "1"
+                                        }
+                                    ]
+                                },
+                                "description": "Lists tasks from GoHighLevel."
+                            }
+                        },
+                        {
+                            "name": "Create Task",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"title\": \"New Task\",\n    \"dueDate\": \"2026-01-15\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/tasks",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "tasks"
+                                    ]
+                                },
+                                "description": "Create a new task."
+                            }
+                        },
+                        {
+                            "name": "Update Task",
+                            "request": {
+                                "method": "PUT",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"title\": \"Updated Task\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/tasks/:task_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "tasks",
+                                        ":task_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "task_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Update an existing task."
+                            }
+                        },
+                        {
+                            "name": "Delete Task",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/tasks/:task_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "tasks",
+                                        ":task_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "task_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Delete a task."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Calendars",
+                    "item": [
+                        {
+                            "name": "List Calendars",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/calendars",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "calendars"
+                                    ]
+                                },
+                                "description": "Lists calendars."
+                            }
+                        },
+                        {
+                            "name": "Get Calendar",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/calendars/:calendar_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "calendars",
+                                        ":calendar_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "calendar_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Get a specific calendar."
+                            }
+                        },
+                        {
+                            "name": "Create Calendar",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"name\": \"New Calendar\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/calendars",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "calendars"
+                                    ]
+                                },
+                                "description": "Create a new calendar."
+                            }
+                        },
+                        {
+                            "name": "Update Calendar",
+                            "request": {
+                                "method": "PUT",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"name\": \"Updated Calendar\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/calendars/:calendar_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "calendars",
+                                        ":calendar_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "calendar_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Update a calendar."
+                            }
+                        },
+                        {
+                            "name": "Delete Calendar",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/calendars/:calendar_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "calendars",
+                                        ":calendar_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "calendar_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Delete a calendar."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Campaigns",
+                    "item": [
+                        {
+                            "name": "List Campaigns",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/campaigns",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "campaigns"
+                                    ]
+                                },
+                                "description": "Lists campaigns."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Pipelines & Opportunities",
+                    "item": [
+                        {
+                            "name": "List Pipelines",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/pipelines",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "pipelines"
+                                    ]
+                                },
+                                "description": "List all pipelines."
+                            }
+                        },
+                        {
+                            "name": "Get Pipeline Stages",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/pipelines/:pipeline_id/stages",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "pipelines",
+                                        ":pipeline_id",
+                                        "stages"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "pipeline_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Get stages for a pipeline."
+                            }
+                        },
+                        {
+                            "name": "Search Opportunities",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/opportunities?limit=10&page=1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "opportunities"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "limit",
+                                            "value": "10"
+                                        },
+                                        {
+                                            "key": "page",
+                                            "value": "1"
+                                        }
+                                    ]
+                                },
+                                "description": "Search/filter opportunities."
+                            }
+                        },
+                        {
+                            "name": "Get Opportunity",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/opportunities/:opportunity_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "opportunities",
+                                        ":opportunity_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "opportunity_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Get a specific opportunity."
+                            }
+                        },
+                        {
+                            "name": "Create Opportunity",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"pipelineId\": \"\",\n    \"name\": \"New Opportunity\",\n    \"contactId\": \"\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/opportunities",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "opportunities"
+                                    ]
+                                },
+                                "description": "Create a new opportunity."
+                            }
+                        },
+                        {
+                            "name": "Update Opportunity",
+                            "request": {
+                                "method": "PUT",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"name\": \"Updated Opportunity\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/opportunities/:opportunity_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "opportunities",
+                                        ":opportunity_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "opportunity_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Update an opportunity."
+                            }
+                        },
+                        {
+                            "name": "Update Opportunity Status",
+                            "request": {
+                                "method": "PUT",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"status\": \"won\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/opportunities/:opportunity_id/status",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "opportunities",
+                                        ":opportunity_id",
+                                        "status"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "opportunity_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Update opportunity status."
+                            }
+                        },
+                        {
+                            "name": "Delete Opportunity",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/opportunities/:opportunity_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "opportunities",
+                                        ":opportunity_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "opportunity_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Delete an opportunity."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Messaging",
+                    "item": [
+                        {
+                            "name": "Send Email",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"contactId\": \"\",\n    \"subject\": \"Hello\",\n    \"message\": \"Email body content\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/messages/email",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "messages",
+                                        "email"
+                                    ]
+                                },
+                                "description": "Send email to a contact."
+                            }
+                        },
+                        {
+                            "name": "Send SMS",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"contactId\": \"\",\n    \"message\": \"SMS content\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/messages/sms",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "messages",
+                                        "sms"
+                                    ]
+                                },
+                                "description": "Send SMS to a contact."
+                            }
+                        },
+                        {
+                            "name": "Send WhatsApp",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"contactId\": \"\",\n    \"message\": \"WhatsApp content\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/messages/whatsapp",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "messages",
+                                        "whatsapp"
+                                    ]
+                                },
+                                "description": "Send WhatsApp message to a contact."
+                            }
+                        },
+                        {
+                            "name": "Get Conversation Messages",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/conversations/:conversation_id/messages",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "conversations",
+                                        ":conversation_id",
+                                        "messages"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "conversation_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Get messages for a conversation."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Tags & Workflows",
+                    "item": [
+                        {
+                            "name": "List Tags",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/tags",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "tags"
+                                    ]
+                                },
+                                "description": "List all tags."
+                            }
+                        },
+                        {
+                            "name": "Create Tag",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"name\": \"New Tag\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/tags",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "tags"
+                                    ]
+                                },
+                                "description": "Create a new tag."
+                            }
+                        },
+                        {
+                            "name": "Delete Tag",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/tags/:tag_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "tags",
+                                        ":tag_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "tag_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Delete a tag."
+                            }
+                        },
+                        {
+                            "name": "List Workflows",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/workflows",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "workflows"
+                                    ]
+                                },
+                                "description": "List all workflows."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Locations",
+                    "item": [
+                        {
+                            "name": "Get Location",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/locations/:location_id",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "locations",
+                                        ":location_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "location_id",
+                                            "value": ""
+                                        }
+                                    ]
+                                },
+                                "description": "Get location details."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Statistics",
+                    "item": [
+                        {
+                            "name": "Get Opportunity Stats",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/stats/opportunities",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "stats",
+                                        "opportunities"
+                                    ]
+                                },
+                                "description": "Get opportunity statistics."
+                            }
+                        },
+                        {
+                            "name": "Get Dashboard Stats",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{access_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/ghl/stats/dashboard",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "ghl",
+                                        "stats",
+                                        "dashboard"
+                                    ]
+                                },
+                                "description": "Get comprehensive dashboard analytics."
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "6. Scheduler",
+            "description": "Scheduler and background job management endpoints.",
+            "item": [
+                {
+                    "name": "Get Scheduled Jobs",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/scheduler/jobs",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "scheduler",
+                                "jobs"
+                            ]
+                        },
+                        "description": "Returns runtime status of internal scheduler jobs."
+                    }
+                },
+                {
+                    "name": "Trigger Job",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/scheduler/jobs/:job_id/trigger",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "scheduler",
+                                "jobs",
+                                ":job_id",
+                                "trigger"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "job_id",
+                                    "value": "fetch_facebook_posts"
+                                }
+                            ]
+                        },
+                        "description": "Manually triggers a specific scheduler job."
+                    }
+                },
+                {
+                    "name": "Pause Job",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/scheduler/jobs/:job_id/pause",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "scheduler",
+                                "jobs",
+                                ":job_id",
+                                "pause"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "job_id",
+                                    "value": "fetch_facebook_posts"
+                                }
+                            ]
+                        },
+                        "description": "Pauses a specific scheduler job."
+                    }
+                },
+                {
+                    "name": "Resume Job",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/scheduler/jobs/:job_id/resume",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "scheduler",
+                                "jobs",
+                                ":job_id",
+                                "resume"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "job_id",
+                                    "value": "fetch_facebook_posts"
+                                }
+                            ]
+                        },
+                        "description": "Resumes a paused scheduler job."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "7. Lead Management",
+            "description": "Lead logging and management endpoints.",
+            "item": [
+                {
+                    "name": "Log Lead",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"firstName\": \"John\",\n    \"email\": \"john@example.com\",\n    \"phone\": \"1234567890\",\n    \"emailConsent\": true,\n    \"smsConsent\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/zestal/loglead",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "zestal",
+                                "loglead"
+                            ]
+                        },
+                        "description": "Logs lead information from the landing page. No authentication required."
+                    }
+                },
+                {
+                    "name": "Zestal Webhook",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"event\": \"sample_event\",\n    \"data\": {}\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/zestal/webhook",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "zestal",
+                                "webhook"
+                            ]
+                        },
+                        "description": "Webhook endpoint for Zestal events."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "8. Phone Pool Management",
+            "description": "Admin endpoints for managing Twilio phone numbers and the phone pool.",
+            "item": [
+                {
+                    "name": "Search Available Numbers",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/phone/admin/search",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "phone",
+                                "admin",
+                                "search"
+                            ]
+                        },
+                        "description": "Search available Twilio numbers by country and area code.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"country_code\": \"US\",\n    \"area_code\": \"512\",\n    \"limit\": 5\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Buy Number",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/phone/admin/buy",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "phone",
+                                "admin",
+                                "buy"
+                            ]
+                        },
+                        "description": "Purchase a number from Twilio and add to the pool. Auto-imports to Vapi.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"phone_number\": \"+15125551234\",\n    \"country_code\": \"US\"\n}"
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.phone_number && jsonData.phone_number.id) {",
+                                    "    pm.collectionVariables.set('phone_id', jsonData.phone_number.id.toString());",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "List Pool",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/phone/admin/pool",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "phone",
+                                "admin",
+                                "pool"
+                            ]
+                        },
+                        "description": "List all phone numbers in the pool with optional status filter."
+                    }
+                },
+                {
+                    "name": "Pool Stats",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/phone/admin/pool/stats",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "phone",
+                                "admin",
+                                "pool",
+                                "stats"
+                            ]
+                        },
+                        "description": "Get pool statistics: total, available, assigned, released, error counts."
+                    }
+                },
+                {
+                    "name": "Assign Number",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/phone/admin/{{phone_id}}/assign",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "phone",
+                                "admin",
+                                "{{phone_id}}",
+                                "assign"
+                            ]
+                        },
+                        "description": "Assign an available phone number to a user.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"user_id\": \"{{user_id}}\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Unassign Number",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/phone/admin/{{phone_id}}/unassign",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "phone",
+                                "admin",
+                                "{{phone_id}}",
+                                "unassign"
+                            ]
+                        },
+                        "description": "Return an assigned number back to the available pool."
+                    }
+                },
+                {
+                    "name": "Auto-Assign",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/phone/admin/auto-assign",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "phone",
+                                "admin",
+                                "auto-assign"
+                            ]
+                        },
+                        "description": "Auto-assign a number to a user. If pool is empty and auto-provision is enabled, buys a new number from Twilio.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"user_id\": \"{{user_id}}\",\n    \"country_code\": \"US\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Retry Vapi Import",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/phone/admin/{{phone_id}}/retry-vapi-import",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "phone",
+                                "admin",
+                                "{{phone_id}}",
+                                "retry-vapi-import"
+                            ]
+                        },
+                        "description": "Retry importing a phone number to Vapi if the initial import failed."
+                    }
+                },
+                {
+                    "name": "Release Number",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/phone/admin/{{phone_id}}/release",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "phone",
+                                "admin",
+                                "{{phone_id}}",
+                                "release"
+                            ]
+                        },
+                        "description": "Release a number from Twilio and remove from Vapi. Sets status to released."
+                    }
+                },
+                {
+                    "name": "My Numbers",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/phone/my-numbers",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "phone",
+                                "my-numbers"
+                            ]
+                        },
+                        "description": "Get phone numbers assigned to the current user."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "9. AI Voice Assistants",
+            "description": "Create and manage Vapi AI assistants with templates for structured data extraction.",
+            "item": [
+                {
+                    "name": "List Templates",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/calls/templates",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "calls",
+                                "templates"
+                            ]
+                        },
+                        "description": "List available call script templates with their extracted field definitions."
+                    }
+                },
+                {
+                    "name": "Create Assistant (Template)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/calls/assistants",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "calls",
+                                "assistants"
+                            ]
+                        },
+                        "description": "Create an assistant using a template. The template auto-generates the system prompt, first message, and structured data extraction schema.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Lead Qualifier\",\n    \"template\": \"lead_qualification\"\n}"
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.assistant && jsonData.assistant.id) {",
+                                    "    pm.collectionVariables.set('assistant_id', jsonData.assistant.id.toString());",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Create Assistant (Custom)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/calls/assistants",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "calls",
+                                "assistants"
+                            ]
+                        },
+                        "description": "Create a custom assistant with your own prompt and configuration.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Custom Bot\",\n    \"model_provider\": \"openai\",\n    \"model_name\": \"gpt-4o\",\n    \"first_message\": \"Hello! How can I help you today?\",\n    \"system_prompt\": \"You are a helpful assistant. Keep responses brief and professional.\"\n}"
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.assistant && jsonData.assistant.id) {",
+                                    "    pm.collectionVariables.set('assistant_id', jsonData.assistant.id.toString());",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "List Assistants",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/calls/assistants",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "calls",
+                                "assistants"
+                            ]
+                        },
+                        "description": "List all active assistants for the current user."
+                    }
+                },
+                {
+                    "name": "Get Assistant",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/calls/assistants/{{assistant_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "calls",
+                                "assistants",
+                                "{{assistant_id}}"
+                            ]
+                        },
+                        "description": "Get details for a specific assistant including system prompt and template."
+                    }
+                },
+                {
+                    "name": "Update Assistant",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/calls/assistants/{{assistant_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "calls",
+                                "assistants",
+                                "{{assistant_id}}"
+                            ]
+                        },
+                        "description": "Update an assistant's name, prompt, voice, or tools.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Updated Bot\",\n    \"first_message\": \"Hi there! What can I do for you?\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Assistant",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/calls/assistants/{{assistant_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "calls",
+                                "assistants",
+                                "{{assistant_id}}"
+                            ]
+                        },
+                        "description": "Soft-delete an assistant. Sets is_active=false, preserving call log references."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "10. Outbound Calling",
+            "description": "Initiate single or batch AI phone calls.",
+            "item": [
+                {
+                    "name": "Initiate Call",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/calls/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "calls",
+                                ""
+                            ]
+                        },
+                        "description": "Start a single outbound AI call. Requires an assigned phone number with Vapi import.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"assistant_id\": \"{{assistant_id}}\",\n    \"customer_number\": \"+15551234567\"\n}"
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.call && jsonData.call.id) {",
+                                    "    pm.collectionVariables.set('call_id', jsonData.call.id.toString());",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "List Calls",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/calls/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "calls",
+                                ""
+                            ]
+                        },
+                        "description": "List all call logs with optional status and direction filters."
+                    }
+                },
+                {
+                    "name": "Get Call Detail",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/calls/{{call_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "calls",
+                                "{{call_id}}"
+                            ]
+                        },
+                        "description": "Get full call details including transcript, duration, recording URL, and cost."
+                    }
+                },
+                {
+                    "name": "Batch Calls",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/calls/batch",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "calls",
+                                "batch"
+                            ]
+                        },
+                        "description": "Queue a batch of up to 50 calls with configurable delay. Runs as a background job.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"assistant_id\": \"{{assistant_id}}\",\n    \"customer_numbers\": [\n        \"+15551111111\",\n        \"+15552222222\"\n    ],\n    \"delay_seconds\": 3\n}"
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.job_id) {",
+                                    "    pm.collectionVariables.set('job_id', jsonData.job_id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Batch Status",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/calls/batch/{{job_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "calls",
+                                "batch",
+                                "{{job_id}}"
+                            ]
+                        },
+                        "description": "Poll the status of a batch calling job. Shows progress, success/error counts."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "11. Call Results",
+            "description": "Query structured data extracted from template-based AI calls.",
+            "item": [
+                {
+                    "name": "Get Call Result",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/calls/{{call_id}}/result",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "calls",
+                                "{{call_id}}",
+                                "result"
+                            ]
+                        },
+                        "description": "Get the structured data extracted from a specific call (e.g., lead name, budget, interest level)."
+                    }
+                },
+                {
+                    "name": "List All Results",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/calls/results",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "calls",
+                                "results"
+                            ]
+                        },
+                        "description": "List all call results with pagination."
+                    }
+                },
+                {
+                    "name": "Filter by Template",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/calls/results?template=lead_qualification",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "calls",
+                                "results"
+                            ]
+                        },
+                        "description": "Filter results by template name (e.g., lead_qualification, appointment_booking)."
+                    }
+                },
+                {
+                    "name": "Filter by Status",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/calls/results?status=completed",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "calls",
+                                "results"
+                            ]
+                        },
+                        "description": "Filter results by extraction status (pending, completed, failed)."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "12. Vapi Webhooks",
+            "description": "Simulate Vapi webhook events for testing. In production, Vapi sends these automatically.",
+            "item": [
+                {
+                    "name": "Simulate End-of-Call Report",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "x-vapi-secret",
+                                "value": "{{webhook_secret}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/webhooks/vapi",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "webhooks",
+                                "vapi"
+                            ]
+                        },
+                        "description": "Simulate a Vapi end-of-call-report webhook with structured data extraction.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"message\": {\n        \"type\": \"end-of-call-report\",\n        \"call\": {\n            \"id\": \"test-call-123\"\n        },\n        \"endedReason\": \"customer-ended-call\",\n        \"durationSeconds\": 90,\n        \"transcript\": \"Agent: Hi there! Customer: Hello, my name is John Smith from Acme Corp...\",\n        \"summary\": \"Lead qualification call with John Smith from Acme Corp.\",\n        \"cost\": 0.08,\n        \"recordingUrl\": \"https://example.com/recording.mp3\",\n        \"analysis\": {\n            \"structuredData\": {\n                \"full_name\": \"John Smith\",\n                \"company\": \"Acme Corp\",\n                \"budget_range\": \"$50K-$100K\",\n                \"timeline\": \"Next quarter\",\n                \"decision_maker\": true,\n                \"pain_points\": \"Current system is too slow\",\n                \"interest_level\": \"warm\"\n            }\n        }\n    }\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Webhook Bad Secret (401)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "x-vapi-secret",
+                                "value": "wrong-secret-123"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/webhooks/vapi",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "webhooks",
+                                "vapi"
+                            ]
+                        },
+                        "description": "Test webhook authentication \u2014 should return 401 with wrong secret.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"message\": {\n        \"type\": \"status-update\",\n        \"status\": \"ringing\",\n        \"call\": {\n            \"id\": \"fake-call\"\n        }\n    }\n}"
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}

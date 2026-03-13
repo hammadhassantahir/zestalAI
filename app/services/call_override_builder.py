@@ -1,14 +1,17 @@
 import json
-from .language_service import resolve_language, resolve_voice
+from .language_service import resolve_language, resolve_voice, get_country_from_number
 from .call_script_templates import get_template
 
 
-def build_overrides(user_config, customer_number, lead_context=None):
+def build_overrides(user_config, customer_number, lead_context=None, country_code=None):
     overrides = {}
 
-    lang = resolve_language(customer_number, user_config)
+    if country_code is None:
+        _, country_code = get_country_from_number(customer_number)
 
-    voice_provider, voice_id = resolve_voice(customer_number, user_config)
+    lang = resolve_language(customer_number, user_config, country_code=country_code)
+
+    voice_provider, voice_id = resolve_voice(customer_number, user_config, country_code=country_code)
     overrides['voice'] = {
         'provider': voice_provider,
         'voiceId': voice_id,

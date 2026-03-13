@@ -41,28 +41,47 @@ SUPPORTED_LANGUAGES = [
 ]
 
 
-def get_country_from_number(phone_number_str):
+def parse_number(phone_number_str):
+    """Parse once, reuse everywhere."""
     try:
-        parsed = phonenumbers.parse(phone_number_str, None)
-        return geocoder.country_name_for_number(parsed, 'en'), \
-               phonenumbers.region_code_for_number(parsed)
-    except Exception:
-        return None, None
-
-
-def get_timezone_from_number(phone_number_str):
-    try:
-        parsed = phonenumbers.parse(phone_number_str, None)
-        tzs = pn_timezone.time_zones_for_number(parsed)
-        return list(tzs)[0] if tzs else None
+        return phonenumbers.parse(phone_number_str, None)
     except Exception:
         return None
 
 
-def resolve_language(customer_number, user_config):
+def get_country_from_number(phone_number_str):
+    parsed = parse_number(phone_number_str)
+    if not parsed:
+        return None, None
+    return geocoder.country_name_for_number(parsed, 'en'), \
+           phonenumbers.region_code_for_number(parsed)
+
+
+def get_timezone_from_number(phone_number_str):
+    parsed = parse_number(phone_number_str)
+    if not parsed:
+        return None
+    tzs = pn_timezone.time_zones_for_number(parsed)
+    return list(tzs)[0] if tzs else None
+
+
+def get_country_and_timezone(phone_number_str):
+    """Parse number once, return (country_name, region_code, timezone)."""
+    parsed = parse_number(phone_number_str)
+    if not parsed:
+        return None, None, None
+    country_name = geocoder.country_name_for_number(parsed, 'en')
+    region_code = phonenumbers.region_code_for_number(parsed)
+    tzs = pn_timezone.time_zones_for_number(parsed)
+    tz = list(tzs)[0] if tzs else None
+    return country_name, region_code, tz
+
+
+def resolve_language(customer_number, user_config, country_code=None):
     """Waterfall: user override -> country default -> user fallback -> en-US"""
     import json
-    _, country_code = get_country_from_number(customer_number)
+    if country_code is None:
+        _, country_code = get_country_from_number(customer_number)
 
     # 1. user override for this country
     if country_code and user_config.language_overrides:
@@ -86,8 +105,9 @@ def resolve_language(customer_number, user_config):
     return 'en-US'
 
 
-def resolve_voice(customer_number, user_config):
-    _, country_code = get_country_from_number(customer_number)
+def resolve_voice(customer_number, user_config, country_code=None):
+    if country_code is None:
+        _, country_code = get_country_from_number(customer_number)
 
     if user_config.voice_provider and user_config.voice_id:
         return user_config.voice_provider, user_config.voice_id
@@ -99,7 +119,7 @@ def resolve_voice(customer_number, user_config):
     return 'openai', 'alloy'
 
 
-def is_in_call_window(customer_number, user_config):
+def is_in_call_window(customer_number, user_config, tz_str=None):
     from datetime import datetime
     import pytz
     import json
@@ -107,7 +127,8 @@ def is_in_call_window(customer_number, user_config):
     if not user_config.call_window_start or not user_config.call_window_end:
         return True
 
-    tz_str = get_timezone_from_number(customer_number)
+    if tz_str is None:
+        tz_str = get_timezone_from_number(customer_number)
     if not tz_str:
         tz_str = user_config.call_window_timezone or 'UTC'
 
@@ -126,3 +147,59 @@ def is_in_call_window(customer_number, user_config):
 
     current_time = now_local.time()
     return user_config.call_window_start <= current_time <= user_config.call_window_end
+
+
+def get_next_call_window(customer_number, user_config, tz_str=None):
+    """Return next valid datetime (UTC) when the call window opens. None if no window set."""
+    from datetime import datetime, timedelta
+    import pytz
+    import json
+
+    if not user_config.call_window_start or not user_config.call_window_end:
+        return None
+
+    if tz_str is None:
+        tz_str = get_timezone_from_number(customer_number)
+    if not tz_str:
+        tz_str = user_config.call_window_timezone or 'UTC'
+
+    try:
+        tz = pytz.timezone(tz_str)
+    except pytz.exceptions.UnknownTimeZoneError:
+        tz = pytz.UTC
+
+    now_local = datetime.now(tz)
+
+    allowed_days = None
+    if user_config.call_window_days:
+        allowed_days = json.loads(user_config.call_window_days) if isinstance(
+            user_config.call_window_days, str) else user_config.call_window_days
+
+    # try today first, then next 7 days
+    for offset in range(8):
+        candidate = now_local + timedelta(days=offset)
+
+        if allowed_days and candidate.isoweekday() not in allowed_days:
+            continue
+
+        # if today and still before window end, use window start (or now if past start)
+        if offset == 0 and candidate.time() < user_config.call_window_end:
+            if candidate.time() >= user_config.call_window_start:
+                return None  # already in window, no scheduling needed
+            target = candidate.replace(
+                hour=user_config.call_window_start.hour,
+                minute=user_config.call_window_start.minute,
+                second=0, microsecond=0,
+            )
+            return target.astimezone(pytz.UTC).replace(tzinfo=None)
+
+        # future day — use window start
+        if offset > 0:
+            target = candidate.replace(
+                hour=user_config.call_window_start.hour,
+                minute=user_config.call_window_start.minute,
+                second=0, microsecond=0,
+            )
+            return target.astimezone(pytz.UTC).replace(tzinfo=None)
+
+    return None

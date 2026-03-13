@@ -63,6 +63,9 @@ class VapiService:
             payload["name"] = name
         return self._request("POST", "/phone-number", data=payload)
 
+    def update_phone_number(self, vapi_phone_id, data):
+        return self._request("PATCH", f"/phone-number/{vapi_phone_id}", data=data)
+
     def delete_phone_number(self, vapi_phone_id):
         return self._request("DELETE", f"/phone-number/{vapi_phone_id}")
 
@@ -78,7 +81,7 @@ class VapiService:
     def delete_assistant(self, vapi_assistant_id):
         return self._request("DELETE", f"/assistant/{vapi_assistant_id}")
 
-    def create_call(self, assistant_id, phone_number_id, customer_number, overrides=None):
+    def create_call(self, assistant_id, phone_number_id, customer_number, overrides=None, schedule_at=None):
         payload = {
             "assistantId": assistant_id,
             "phoneNumberId": phone_number_id,
@@ -88,6 +91,10 @@ class VapiService:
         }
         if overrides:
             payload["assistantOverrides"] = overrides
+        if schedule_at:
+            payload["schedulePlan"] = {
+                "earliestAt": schedule_at.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+            }
         return self._request("POST", "/call/phone", data=payload)
 
     def get_call(self, vapi_call_id):

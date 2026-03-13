@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import func
+from sqlalchemy import func, case
 from ..extensions import db
 from ..models.call_log import CallLog
 from ..models.call_analytics import CallAnalytics
@@ -13,23 +13,28 @@ analytics_bp = Blueprint('analytics', __name__)
 @jwt_required()
 def calls_summary():
     user_id = get_jwt_identity()
-    total = CallLog.query.filter_by(user_id=user_id).count()
-    completed = CallLog.query.filter_by(user_id=user_id, status=CallLog.STATUS_ENDED).count()
-    failed = CallLog.query.filter_by(user_id=user_id, status=CallLog.STATUS_FAILED).count()
 
-    avg_duration = db.session.query(func.avg(CallLog.duration_seconds)).filter(
-        CallLog.user_id == user_id, CallLog.duration_seconds.isnot(None)
-    ).scalar() or 0
+    # single query for call_logs stats
+    call_stats = db.session.query(
+        func.count(CallLog.id),
+        func.count(case((CallLog.status == CallLog.STATUS_ENDED, 1))),
+        func.count(case((CallLog.status == CallLog.STATUS_FAILED, 1))),
+        func.avg(case((CallLog.duration_seconds.isnot(None), CallLog.duration_seconds))),
+        func.sum(case((CallLog.cost.isnot(None), CallLog.cost))),
+    ).filter(CallLog.user_id == user_id).first()
 
-    total_cost = db.session.query(func.sum(CallLog.cost)).filter(
-        CallLog.user_id == user_id, CallLog.cost.isnot(None)
-    ).scalar() or 0
+    total, completed, failed = call_stats[0], call_stats[1], call_stats[2]
+    avg_duration = call_stats[3] or 0
+    total_cost = call_stats[4] or 0
 
-    avg_interest = db.session.query(func.avg(CallAnalytics.interest_level)).filter(
-        CallAnalytics.user_id == user_id, CallAnalytics.interest_level.isnot(None)
-    ).scalar() or 0
+    # single query for analytics stats
+    analytics_stats = db.session.query(
+        func.avg(case((CallAnalytics.interest_level.isnot(None), CallAnalytics.interest_level))),
+        func.count(case((CallAnalytics.success_evaluation == CallAnalytics.SUCCESS_YES, 1))),
+    ).filter(CallAnalytics.user_id == user_id).first()
 
-    success_count = CallAnalytics.query.filter_by(user_id=user_id, success_evaluation='yes').count()
+    avg_interest = analytics_stats[0] or 0
+    success_count = analytics_stats[1]
 
     return jsonify({'summary': {
         'total_calls': total, 'completed': completed, 'failed': failed,
@@ -44,14 +49,18 @@ def calls_summary():
 @jwt_required()
 def calls_sentiment():
     user_id = get_jwt_identity()
-    positive = CallAnalytics.query.filter_by(user_id=user_id, sentiment='positive').count()
-    negative = CallAnalytics.query.filter_by(user_id=user_id, sentiment='negative').count()
-    neutral = CallAnalytics.query.filter_by(user_id=user_id, sentiment='neutral').count()
+    rows = db.session.query(
+        CallAnalytics.sentiment, func.count(CallAnalytics.id)
+    ).filter(
+        CallAnalytics.user_id == user_id,
+        CallAnalytics.sentiment.isnot(None),
+    ).group_by(CallAnalytics.sentiment).all()
 
+    counts = {row[0]: row[1] for row in rows}
     return jsonify({'sentiment': {
-        'positive': positive,
-        'negative': negative,
-        'neutral': neutral,
+        'positive': counts.get(CallAnalytics.SENTIMENT_POSITIVE, 0),
+        'negative': counts.get(CallAnalytics.SENTIMENT_NEGATIVE, 0),
+        'neutral': counts.get(CallAnalytics.SENTIMENT_NEUTRAL, 0),
     }}), 200
 
 

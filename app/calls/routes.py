@@ -11,7 +11,6 @@ from ..models.call_log import CallLog
 from ..models.call_analytics import CallAnalytics
 from ..models.job import Job
 from ..services.vapi_service import VapiService
-from ..services.call_script_templates import get_template, list_templates as list_all_templates
 from ..models.call_result import CallResult
 
 logger = logging.getLogger(__name__)
@@ -19,13 +18,24 @@ logger = logging.getLogger(__name__)
 calls_bp = Blueprint('calls', __name__)
 
 
-# ─── Templates ─────────────────────────────────────────────────────────────
+def _get_call_prereqs(user_id):
+    """Returns (config, phone, assistant_id, error). Check error first."""
+    config = UserCallConfig.query.filter_by(user_id=user_id, is_active=True).first()
+    if not config:
+        return None, None, None, 'No active call configuration. Set up your config first.'
 
+    phone = PhoneNumber.query.filter_by(
+        user_id=user_id,
+        status=PhoneNumber.STATUS_ASSIGNED,
+    ).filter(PhoneNumber.vapi_phone_id.isnot(None)).first()
+    if not phone:
+        return None, None, None, 'No assigned phone number with Vapi import. Contact admin.'
 
-@calls_bp.route('/templates', methods=['GET'])
-@jwt_required()
-def get_templates():
-    return jsonify({'templates': list_all_templates()}), 200
+    shared_assistant_id = current_app.config.get('VAPI_SHARED_ASSISTANT_ID')
+    if not shared_assistant_id:
+        return None, None, None, 'Shared assistant not configured'
+
+    return config, phone, shared_assistant_id, None
 
 
 # ─── Call Routes ────────────────────────────────────────────────────────────
@@ -43,32 +53,24 @@ def initiate_call():
     if not customer_number:
         return jsonify({'error': 'customer_number is required'}), 400
 
-    # Get user's call config
-    config = UserCallConfig.query.filter_by(user_id=user_id, is_active=True).first()
-    if not config:
-        return jsonify({'error': 'No active call configuration. Set up your config first.'}), 400
+    config, phone, shared_assistant_id, err = _get_call_prereqs(user_id)
+    if err:
+        return jsonify({'error': err}), 400
 
-    # Check call window
-    from ..services.language_service import is_in_call_window
-    if not is_in_call_window(customer_number, config):
-        return jsonify({'error': 'Outside allowed call window'}), 400
+    # Parse number once, reuse country/tz
+    from ..services.language_service import get_country_and_timezone, is_in_call_window, get_next_call_window
+    _, country_code, tz_str = get_country_and_timezone(customer_number)
 
-    # Get user's assigned phone number with Vapi import
-    phone = PhoneNumber.query.filter_by(
-        user_id=user_id,
-        status=PhoneNumber.STATUS_ASSIGNED,
-    ).filter(PhoneNumber.vapi_phone_id.isnot(None)).first()
-
-    if not phone:
-        return jsonify({'error': 'No assigned phone number with Vapi import. Contact admin.'}), 400
-
-    shared_assistant_id = current_app.config.get('VAPI_SHARED_ASSISTANT_ID')
-    if not shared_assistant_id:
-        return jsonify({'error': 'Shared assistant not configured'}), 500
+    in_window = is_in_call_window(customer_number, config, tz_str=tz_str)
+    schedule_at = None
+    if not in_window:
+        schedule_at = get_next_call_window(customer_number, config, tz_str=tz_str)
+        if not schedule_at:
+            return jsonify({'error': 'Outside call window and no valid window found in next 7 days'}), 400
 
     # Build overrides from user config
     from ..services.call_override_builder import build_overrides
-    overrides = build_overrides(config, customer_number, lead_context=lead_context)
+    overrides = build_overrides(config, customer_number, lead_context=lead_context, country_code=country_code)
 
     try:
         vapi = VapiService()
@@ -77,14 +79,17 @@ def initiate_call():
             phone_number_id=phone.vapi_phone_id,
             customer_number=customer_number,
             overrides=overrides,
+            schedule_at=schedule_at,
         )
 
+        call_status = CallLog.STATUS_SCHEDULED if schedule_at else CallLog.STATUS_QUEUED
         call_log = CallLog(
             user_id=user_id,
             vapi_call_id=vapi_result.get('id'),
             phone_number_id=phone.id,
             customer_number=customer_number,
-            status=CallLog.STATUS_QUEUED,
+            status=call_status,
+            scheduled_at=schedule_at,
             template_used=config.active_template,
             lead_context=json.dumps(lead_context) if lead_context else None,
         )
@@ -209,22 +214,9 @@ def batch_calls():
     if not customer_numbers or len(customer_numbers) > 50:
         return jsonify({'error': 'customer_numbers must be 1-50 numbers'}), 400
 
-    # Validate config
-    config = UserCallConfig.query.filter_by(user_id=user_id, is_active=True).first()
-    if not config:
-        return jsonify({'error': 'No active call configuration. Set up your config first.'}), 400
-
-    # Validate phone
-    phone = PhoneNumber.query.filter_by(
-        user_id=user_id,
-        status=PhoneNumber.STATUS_ASSIGNED,
-    ).filter(PhoneNumber.vapi_phone_id.isnot(None)).first()
-    if not phone:
-        return jsonify({'error': 'No assigned phone number with Vapi import. Contact admin.'}), 400
-
-    shared_assistant_id = current_app.config.get('VAPI_SHARED_ASSISTANT_ID')
-    if not shared_assistant_id:
-        return jsonify({'error': 'Shared assistant not configured'}), 500
+    config, phone, shared_assistant_id, err = _get_call_prereqs(user_id)
+    if err:
+        return jsonify({'error': err}), 400
 
     # Create a Job record
     job_id = str(uuid.uuid4())
@@ -277,6 +269,7 @@ def _execute_batch_calls(app, job_id, user_id, shared_assistant_id, vapi_phone_i
 
         config = UserCallConfig.query.get(config_id)
         from ..services.call_override_builder import build_overrides
+        vapi = VapiService()
 
         success_count = 0
         error_count = 0
@@ -285,7 +278,6 @@ def _execute_batch_calls(app, job_id, user_id, shared_assistant_id, vapi_phone_i
             try:
                 overrides = build_overrides(config, customer_number) if config else None
 
-                vapi = VapiService()
                 vapi_result = vapi.create_call(
                     assistant_id=shared_assistant_id,
                     phone_number_id=vapi_phone_id,

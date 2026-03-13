@@ -1,6 +1,6 @@
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import current_app
 from ..extensions import db
 from ..models.phone_number import PhoneNumber
@@ -65,6 +65,9 @@ class PhonePoolService:
             phone.user_id = user_id
             phone.assigned_at = datetime.utcnow()
             db.session.commit()
+
+            PhonePoolService._update_vapi_name(phone, user_id)
+
             return {'success': True, 'phone_number': phone.to_dict()}
 
         except Exception as e:
@@ -82,6 +85,7 @@ class PhonePoolService:
                 phone.user_id = user_id
                 phone.assigned_at = datetime.utcnow()
                 db.session.commit()
+                PhonePoolService._update_vapi_name(phone, user_id)
                 return {'success': True, 'phone_number': phone.to_dict(), 'auto_provisioned': False}
 
             # No available number — try auto-provision
@@ -112,12 +116,75 @@ class PhonePoolService:
             phone.user_id = user_id
             phone.assigned_at = datetime.utcnow()
             db.session.commit()
+            PhonePoolService._update_vapi_name(phone, user_id)
             return {'success': True, 'phone_number': phone.to_dict(), 'auto_provisioned': True}
 
         except Exception as e:
             db.session.rollback()
             logger.error(f"auto_assign_to_user error: {str(e)}")
             return {'error': str(e)}
+
+    @staticmethod
+    def freeze_number(phone_id, user_id):
+        try:
+            phone = PhoneNumber.query.filter_by(id=phone_id, user_id=user_id).first()
+            if not phone:
+                return {'error': 'Phone number not found'}
+            if phone.status != PhoneNumber.STATUS_ASSIGNED:
+                return {'error': f'Can only freeze an active number (status: {phone.status})'}
+
+            now = datetime.utcnow()
+            phone.status = PhoneNumber.STATUS_FROZEN
+            phone.frozen_at = now
+            phone.frozen_expires_at = now + timedelta(days=30)
+            db.session.commit()
+            return {'success': True, 'phone_number': phone.to_dict()}
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"freeze_number error: {str(e)}")
+            return {'error': str(e)}
+
+    @staticmethod
+    def restore_number(phone_id, user_id):
+        try:
+            phone = PhoneNumber.query.filter_by(id=phone_id, user_id=user_id).first()
+            if not phone:
+                return {'error': 'Phone number not found'}
+            if phone.status != PhoneNumber.STATUS_FROZEN:
+                return {'error': f'Can only restore a frozen number (status: {phone.status})'}
+
+            active = PhoneNumber.get_active_by_user(user_id)
+            if active:
+                return {'error': 'You already have an active number. Freeze it first.'}
+
+            phone.status = PhoneNumber.STATUS_ASSIGNED
+            phone.frozen_at = None
+            phone.frozen_expires_at = None
+            db.session.commit()
+            return {'success': True, 'phone_number': phone.to_dict()}
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"restore_number error: {str(e)}")
+            return {'error': str(e)}
+
+    @staticmethod
+    def _update_vapi_name(phone, user_id):
+        """Update Vapi phone number name to {id}-{first_name last_name}"""
+        if not phone.vapi_phone_id:
+            return
+        try:
+            from ..models.user import User
+            user = User.query.get(user_id)
+            if not user:
+                return
+            vapi = VapiService()
+            vapi.update_phone_number(phone.vapi_phone_id, {
+                "name": f"{user_id}-{user.first_name} {user.last_name}"
+            })
+        except Exception as e:
+            logger.warning(f"Failed to update Vapi name for {phone.phone_number}: {e}")
 
     @staticmethod
     def unassign(phone_id):
@@ -186,6 +253,7 @@ class PhonePoolService:
                     'total': total,
                     'available': counts.get(PhoneNumber.STATUS_AVAILABLE, 0),
                     'assigned': counts.get(PhoneNumber.STATUS_ASSIGNED, 0),
+                    'frozen': counts.get(PhoneNumber.STATUS_FROZEN, 0),
                     'released': counts.get(PhoneNumber.STATUS_RELEASED, 0),
                     'error': counts.get(PhoneNumber.STATUS_ERROR, 0),
                     'max_size': current_app.config.get('PHONE_POOL_MAX_SIZE', 50),
@@ -212,28 +280,33 @@ class PhonePoolService:
             twilio_phones = {num['phone_number'] for num in result.get('numbers', [])}
             synced = []
 
-            # Clear stale vapi_phone_id for numbers not on current Twilio account
-            active_local = PhoneNumber.query.filter(
-                PhoneNumber.status.in_([PhoneNumber.STATUS_AVAILABLE, PhoneNumber.STATUS_ASSIGNED]),
-                PhoneNumber.vapi_phone_id.isnot(None)
+            # Pre-load all local numbers into dicts for O(1) lookup
+            all_local = PhoneNumber.query.filter(
+                PhoneNumber.status != PhoneNumber.STATUS_RELEASED
             ).all()
-            for local in active_local:
-                if local.phone_number not in twilio_phones:
+            by_sid = {p.twilio_sid: p for p in all_local if p.twilio_sid}
+            by_number = {p.phone_number: p for p in all_local}
+
+            # Clear stale vapi_phone_id for numbers not on current Twilio account
+            for local in all_local:
+                if local.vapi_phone_id and local.phone_number not in twilio_phones:
                     logger.info(f"Clearing stale vapi_phone_id for {local.phone_number} (not on current Twilio account)")
                     local.vapi_phone_id = None
-                    db.session.commit()
                     synced.append({'phone_number': local.phone_number, 'action': 'stale_vapi_cleared'})
+
+            # Also check released numbers for reactivation
+            released = {p.phone_number: p for p in PhoneNumber.query.filter_by(
+                status=PhoneNumber.STATUS_RELEASED).all()}
 
             # Add/reactivate Twilio numbers in local DB
             for num in result.get('numbers', []):
-                existing = PhoneNumber.query.filter_by(twilio_sid=num['sid']).first()
+                existing = by_sid.get(num['sid']) or by_number.get(num['phone_number'])
                 if not existing:
-                    existing = PhoneNumber.query.filter_by(phone_number=num['phone_number']).first()
+                    existing = released.get(num['phone_number'])
                 if existing:
                     if existing.status == PhoneNumber.STATUS_RELEASED:
                         existing.status = PhoneNumber.STATUS_AVAILABLE
                         existing.twilio_sid = num['sid']
-                        db.session.commit()
                         synced.append({'phone_number': existing.phone_number, 'action': 'reactivated'})
                     else:
                         synced.append({'phone_number': existing.phone_number, 'action': 'already_exists'})
@@ -246,8 +319,9 @@ class PhonePoolService:
                         status=PhoneNumber.STATUS_AVAILABLE,
                     )
                     db.session.add(phone)
-                    db.session.commit()
                     synced.append({'phone_number': num['phone_number'], 'action': 'added'})
+
+            db.session.commit()
 
             return {'success': True, 'synced': synced, 'total': len(synced)}
 

@@ -7,11 +7,13 @@ class CallLog(db.Model):
     __tablename__ = 'call_logs'
 
     # Status constants
+    STATUS_SCHEDULED = 'scheduled'
     STATUS_QUEUED = 'queued'
     STATUS_RINGING = 'ringing'
     STATUS_IN_PROGRESS = 'in-progress'
     STATUS_ENDED = 'ended'
     STATUS_FAILED = 'failed'
+    STATUS_HANG = 'hang'
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -21,6 +23,7 @@ class CallLog(db.Model):
     direction = db.Column(db.String(20), default='outbound')
     customer_number = db.Column(db.String(20), nullable=False)
     status = db.Column(db.String(30), nullable=False, default=STATUS_QUEUED)
+    scheduled_at = db.Column(db.DateTime, nullable=True)
     end_reason = db.Column(db.String(50), nullable=True)
     started_at = db.Column(db.DateTime, nullable=True)
     ended_at = db.Column(db.DateTime, nullable=True)
@@ -65,6 +68,7 @@ class CallLog(db.Model):
             'direction': self.direction,
             'customer_number': self.customer_number,
             'status': self.status,
+            'scheduled_at': self.scheduled_at.isoformat() if self.scheduled_at else None,
             'end_reason': self.end_reason,
             'started_at': self.started_at.isoformat() if self.started_at else None,
             'ended_at': self.ended_at.isoformat() if self.ended_at else None,

@@ -247,6 +247,12 @@ class LeadConnectorClient:
         """Delete a tag"""
         return self._request("DELETE", f"/locations/{self.location_id}/tags/{tag_id}")
 
+    # =============
+    # Custom Fields
+    # =============
+    def list_custom_fields(self):
+        return self._request("GET", f"/locations/{self.location_id}/customFields")
+
     # =========
     # Workflows
     # =========
