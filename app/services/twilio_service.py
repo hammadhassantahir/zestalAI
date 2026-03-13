@@ -1,8 +1,23 @@
 import logging
+import re
 from flask import current_app
 from twilio.rest import Client
 
 logger = logging.getLogger(__name__)
+
+
+def _clean_twilio_error(e):
+    raw = re.sub(r'\x1b\[[0-9;]*m', '', str(e)).strip()
+    match = re.search(r'Unable to create record:\s*(.+?)(?:\n|$)', raw)
+    if match:
+        return match.group(1).strip()
+    # try generic "Twilio returned" block
+    match = re.search(r'Twilio returned the following information:\s*(.+?)(?:\n|$)', raw)
+    if match:
+        return match.group(1).strip()
+    # fallback: first non-empty line after stripping
+    lines = [l.strip() for l in raw.splitlines() if l.strip()]
+    return lines[-1] if lines else raw
 
 
 class TwilioService:
@@ -34,7 +49,7 @@ class TwilioService:
             return {'success': True, 'numbers': numbers}
         except Exception as e:
             logger.error(f"Twilio search error: {str(e)}")
-            return {'error': str(e)}
+            return {'error': _clean_twilio_error(e)}
 
     def buy_number(self, phone_number):
         try:
@@ -54,7 +69,7 @@ class TwilioService:
             }
         except Exception as e:
             logger.error(f"Twilio buy error: {str(e)}")
-            return {'error': str(e)}
+            return {'error': _clean_twilio_error(e)}
 
     def release_number(self, twilio_sid):
         try:
@@ -62,7 +77,7 @@ class TwilioService:
             return {'success': True}
         except Exception as e:
             logger.error(f"Twilio release error: {str(e)}")
-            return {'error': str(e)}
+            return {'error': _clean_twilio_error(e)}
 
     def send_sms(self, from_number, to_number, body):
         try:
@@ -82,7 +97,7 @@ class TwilioService:
             }
         except Exception as e:
             logger.error(f"Twilio send SMS error: {str(e)}")
-            return {'error': str(e)}
+            return {'error': _clean_twilio_error(e)}
 
     def get_sms(self, message_sid):
         try:
@@ -101,7 +116,7 @@ class TwilioService:
             }
         except Exception as e:
             logger.error(f"Twilio get SMS error: {str(e)}")
-            return {'error': str(e)}
+            return {'error': _clean_twilio_error(e)}
 
     def list_sms(self, from_number=None, to_number=None, limit=50):
         try:
@@ -126,7 +141,7 @@ class TwilioService:
             }
         except Exception as e:
             logger.error(f"Twilio list SMS error: {str(e)}")
-            return {'error': str(e)}
+            return {'error': _clean_twilio_error(e)}
 
     def list_account_numbers(self, limit=200):
         try:
@@ -142,4 +157,4 @@ class TwilioService:
             return {'success': True, 'numbers': result}
         except Exception as e:
             logger.error(f"Twilio list error: {str(e)}")
-            return {'error': str(e)}
+            return {'error': _clean_twilio_error(e)}
