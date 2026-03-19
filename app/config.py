@@ -72,6 +72,10 @@ class Config:
     VAPI_WEBHOOK_SECRET = os.getenv('VAPI_WEBHOOK_SECRET')
     VAPI_SHARED_ASSISTANT_ID = os.getenv('VAPI_SHARED_ASSISTANT_ID')
 
+    # SMS Configuration
+    VAPI_SMS_MODEL = os.getenv('VAPI_SMS_MODEL', 'gpt-4o-mini')
+    SMS_TEST_NUMBER = os.getenv('SMS_TEST_NUMBER')  # if set, overrides to_number for all outbound SMS
+
     # Phone Pool Configuration
     PHONE_POOL_MAX_SIZE = int(os.getenv('PHONE_POOL_MAX_SIZE', 50))
     PHONE_POOL_AUTO_PROVISION = os.getenv('PHONE_POOL_AUTO_PROVISION', 'true').lower() == 'true'
