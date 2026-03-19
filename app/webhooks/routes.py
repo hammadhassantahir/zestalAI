@@ -4,6 +4,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, current_app
 from ..extensions import db
 from ..models.call_log import CallLog
+from ..models.sms_log import SmsLog
 from ..models.call_result import CallResult
 from ..models.vapi_assistant import VapiAssistant
 
@@ -171,6 +172,33 @@ def _handle_hang(vapi_call_id, message):
     call.status = CallLog.STATUS_HANG
     db.session.commit()
     logger.info(f"Call {vapi_call_id} hang event received")
+
+
+@webhooks_bp.route('/sms/status', methods=['POST'])
+def sms_status():
+    message_sid = request.form.get('MessageSid')
+    message_status = request.form.get('MessageStatus')
+    error_code_raw = request.form.get('ErrorCode', '')
+    error_message = request.form.get('ErrorMessage', '')
+
+    log = SmsLog.query.filter_by(twilio_sid=message_sid).first()
+    if not log:
+        logger.warning(f"SmsLog not found for twilio_sid: {message_sid}")
+        return '', 200  # must return 200 or Twilio retries
+
+    log.status = message_status
+    if error_code_raw:
+        log.error_code = error_code_raw
+        log.error_message = error_message
+        try:
+            if int(error_code_raw) in {30003, 30005, 30006}:
+                log.is_valid_number = False
+        except (ValueError, TypeError):
+            pass
+
+    db.session.commit()
+    logger.info(f"SMS {message_sid} status updated to: {message_status}")
+    return '', 200
 
 
 def _run_call_analysis(app, call_log_id):
