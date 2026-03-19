@@ -1,5 +1,5 @@
 import logging
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..models.phone_number import PhoneNumber
 from ..services.twilio_service import TwilioService
@@ -21,16 +21,61 @@ def send_sms():
     if not to or not body:
         return jsonify({'error': 'to and body are required'}), 400
 
-    # use the user's active phone number as sender
     phone = PhoneNumber.get_active_by_user(user_id)
     if not phone:
         return jsonify({'error': 'No active phone number assigned'}), 400
 
+    # resolve language from recipient number
+    from ..services.language_service import get_country_from_number, LANGUAGE_MAP
+    _, region_code = get_country_from_number(to)
+    language = LANGUAGE_MAP.get(region_code, {}).get('lang', 'en-US') if region_code else 'en-US'
+
+    # generate translated content via Vapi
+    try:
+        from ..services.vapi_sms_service import VapiSmsService
+        translated = VapiSmsService().generate(body, language)
+    except Exception as e:
+        logger.error(f"Vapi SMS generation error: {str(e)}")
+        return jsonify({'error': f'SMS generation failed: {str(e)}'}), 502
+
+    # test number override (language resolved from original `to`)
+    send_to = current_app.config.get('SMS_TEST_NUMBER') or to
+
+    status_callback = current_app.config['BASE_URL'] + '/api/webhooks/sms/status'
+
+    # create log before sending so failures are also recorded
+    from ..models.sms_log import SmsLog
+    from ..extensions import db
+    log = SmsLog(
+        user_id=user_id,
+        to_number=to,
+        from_number=phone.phone_number,
+        body=translated,
+        language=language,
+        status='queued',
+    )
+    db.session.add(log)
+    db.session.commit()
+
     twilio = TwilioService()
-    result = twilio.send_sms(from_number=phone.phone_number, to_number=to, body=body)
+    result = twilio.send_sms(
+        from_number=phone.phone_number,
+        to_number=send_to,
+        body=translated,
+        status_callback=status_callback,
+    )
+
     if 'error' in result:
+        log.status = 'failed'
+        log.error_message = result['error']
+        db.session.commit()
         return jsonify({'error': result['error']}), 400
-    return jsonify(result), 201
+
+    log.twilio_sid = result['sid']
+    log.status = result.get('status', 'queued')
+    db.session.commit()
+
+    return jsonify({**result, 'language': language, 'log_id': log.id}), 201
 
 
 @sms_bp.route('/send-bulk', methods=['POST'])
