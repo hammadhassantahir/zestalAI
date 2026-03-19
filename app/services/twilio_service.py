@@ -79,13 +79,12 @@ class TwilioService:
             logger.error(f"Twilio release error: {str(e)}")
             return {'error': _clean_twilio_error(e)}
 
-    def send_sms(self, from_number, to_number, body):
+    def send_sms(self, from_number, to_number, body, status_callback=None):
         try:
-            msg = self.client.messages.create(
-                from_=from_number,
-                to=to_number,
-                body=body,
-            )
+            kwargs = dict(from_=from_number, to=to_number, body=body)
+            if status_callback:
+                kwargs['status_callback'] = status_callback
+            msg = self.client.messages.create(**kwargs)
             return {
                 'success': True,
                 'sid': msg.sid,
