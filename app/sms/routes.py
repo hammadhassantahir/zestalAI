@@ -96,14 +96,68 @@ def send_bulk_sms():
     if not phone:
         return jsonify({'error': 'No active phone number assigned'}), 400
 
+    from ..services.language_service import get_country_from_number, LANGUAGE_MAP
+    from ..services.vapi_sms_service import VapiSmsService
+    from ..models.sms_log import SmsLog
+    from ..extensions import db
+
+    test_number = current_app.config.get('SMS_TEST_NUMBER')
+    status_callback = current_app.config['BASE_URL'] + '/api/webhooks/sms/status'
     twilio = TwilioService()
+    vapi_sms = VapiSmsService()
     results = []
+
     for to in recipients:
-        r = twilio.send_sms(from_number=phone.phone_number, to_number=to, body=body)
-        results.append({'to': to, 'success': 'error' not in r, 'sid': r.get('sid'), 'error': r.get('error')})
+        _, region_code = get_country_from_number(to)
+        language = LANGUAGE_MAP.get(region_code, {}).get('lang', 'en-US') if region_code else 'en-US'
+
+        log = SmsLog(
+            user_id=user_id,
+            to_number=to,
+            from_number=phone.phone_number,
+            language=language,
+            status='queued',
+        )
+        db.session.add(log)
+        db.session.flush()
+
+        try:
+            translated = vapi_sms.generate(body, language)
+        except Exception as e:
+            log.status = 'failed'
+            log.error_message = str(e)
+            db.session.commit()
+            results.append({'to': to, 'success': False, 'error': str(e), 'log_id': log.id})
+            continue
+
+        log.body = translated
+        send_to = test_number or to
+        r = twilio.send_sms(
+            from_number=phone.phone_number,
+            to_number=send_to,
+            body=translated,
+            status_callback=status_callback,
+        )
+
+        if 'error' in r:
+            log.status = 'failed'
+            log.error_message = r['error']
+            db.session.commit()
+            results.append({'to': to, 'success': False, 'error': r['error'], 'log_id': log.id})
+        else:
+            log.twilio_sid = r['sid']
+            log.status = r.get('status', 'queued')
+            db.session.commit()
+            results.append({'to': to, 'success': True, 'sid': r['sid'], 'language': language, 'log_id': log.id})
 
     sent = sum(1 for r in results if r['success'])
-    return jsonify({'success': True, 'total': len(recipients), 'sent': sent, 'failed': len(recipients) - sent, 'results': results}), 201
+    return jsonify({
+        'success': True,
+        'total': len(recipients),
+        'sent': sent,
+        'failed': len(recipients) - sent,
+        'results': results,
+    }), 201
 
 
 @sms_bp.route('/<message_sid>', methods=['GET'])
