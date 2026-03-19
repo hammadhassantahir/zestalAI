@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, current_app
 from ..extensions import db
 from ..models.call_log import CallLog
-from ..models.sms_log import SmsLog
+from ..models.sms_log import SmsLog, INVALID_NUMBER_CODES
 from ..models.call_result import CallResult
 from ..models.vapi_assistant import VapiAssistant
 
@@ -181,6 +181,9 @@ def sms_status():
     error_code_raw = request.form.get('ErrorCode', '')
     error_message = request.form.get('ErrorMessage', '')
 
+    if not message_sid:
+        return '', 200
+
     log = SmsLog.query.filter_by(twilio_sid=message_sid).first()
     if not log:
         logger.warning(f"SmsLog not found for twilio_sid: {message_sid}")
@@ -191,7 +194,7 @@ def sms_status():
         log.error_code = error_code_raw
         log.error_message = error_message
         try:
-            if int(error_code_raw) in {30003, 30005, 30006}:
+            if int(error_code_raw) in INVALID_NUMBER_CODES:
                 log.is_valid_number = False
         except (ValueError, TypeError):
             pass
