@@ -10,3 +10,4 @@ from .call_log import CallLog
 from .call_result import CallResult
 from .user_call_config import UserCallConfig
 from .call_analytics import CallAnalytics
+from .sms_log import SmsLog
