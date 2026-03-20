@@ -45,7 +45,9 @@ def build_overrides(user_config, customer_number, lead_context=None, country_cod
         prompt_parts.append(f"\nLead context (use this to personalize):\n{ctx_str}")
 
     overrides['model'] = {
-        'messages': [{'role': 'system', 'content': '\n'.join(prompt_parts)}]
+        'provider': 'openai',
+        'model': 'gpt-4o-mini',
+        'messages': [{'role': 'system', 'content': '\n'.join(prompt_parts)}],
     }
 
     # Greeting
