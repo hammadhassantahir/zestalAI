@@ -6,13 +6,11 @@ from .language_service import SUPPORTED_LANGUAGES
 logger = logging.getLogger(__name__)
 
 VAPI_BASE_URL = "https://api.vapi.ai"
+_LANG_NAME_MAP = {e['code']: e['name'] for e in SUPPORTED_LANGUAGES}
 
 
 def _lang_name(lang_code):
-    for entry in SUPPORTED_LANGUAGES:
-        if entry['code'] == lang_code:
-            return entry['name']
-    return lang_code
+    return _LANG_NAME_MAP.get(lang_code, lang_code)
 
 
 class VapiSmsService:

@@ -52,7 +52,6 @@ def send_sms():
         from_number=phone.phone_number,
         body=translated,
         language=language,
-        status='queued',
     )
     db.session.add(log)
     db.session.commit()
@@ -116,7 +115,6 @@ def send_bulk_sms():
             to_number=to,
             from_number=phone.phone_number,
             language=language,
-            status='queued',
         )
         db.session.add(log)
         db.session.flush()
@@ -126,7 +124,6 @@ def send_bulk_sms():
         except Exception as e:
             log.status = 'failed'
             log.error_message = str(e)
-            db.session.commit()
             results.append({'to': to, 'success': False, 'error': str(e), 'log_id': log.id})
             continue
 
@@ -142,13 +139,13 @@ def send_bulk_sms():
         if 'error' in r:
             log.status = 'failed'
             log.error_message = r['error']
-            db.session.commit()
             results.append({'to': to, 'success': False, 'error': r['error'], 'log_id': log.id})
         else:
             log.twilio_sid = r['sid']
             log.status = r.get('status', 'queued')
-            db.session.commit()
             results.append({'to': to, 'success': True, 'sid': r['sid'], 'language': language, 'log_id': log.id})
+
+    db.session.commit()
 
     sent = sum(1 for r in results if r['success'])
     return jsonify({
@@ -165,19 +162,18 @@ def send_bulk_sms():
 def list_sms_logs():
     user_id = get_jwt_identity()
     page = request.args.get('page', 1, type=int)
-    limit = min(request.args.get('limit', 20, type=int), 100)
+    per_page = min(request.args.get('per_page', 20, type=int), 100)
 
     from ..models.sms_log import SmsLog
-    query = SmsLog.query.filter_by(user_id=user_id).order_by(SmsLog.created_at.desc())
-    total = query.count()
-    logs = query.offset((page - 1) * limit).limit(limit).all()
+    pagination = SmsLog.query.filter_by(user_id=user_id).order_by(SmsLog.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
 
     return jsonify({
         'success': True,
-        'logs': [log.to_dict() for log in logs],
-        'total': total,
-        'page': page,
-        'pages': (total + limit - 1) // limit,
+        'logs': [log.to_dict() for log in pagination.items],
+        'total': pagination.total,
+        'page': pagination.page,
+        'pages': pagination.pages,
+        'per_page': pagination.per_page,
     }), 200
 
 
