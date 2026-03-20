@@ -6,7 +6,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
 from ..models.user_call_config import UserCallConfig
 from ..services.language_service import SUPPORTED_LANGUAGES
-from ..services.call_script_templates import list_templates
+from ..services.call_script_templates import list_templates, DEFAULT_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +19,8 @@ def get_call_config():
     user_id = get_jwt_identity()
     cfg = UserCallConfig.query.filter_by(user_id=user_id).first()
     if not cfg:
-        return jsonify({'config': None, 'message': 'No config set. Use PUT to create.'}), 200
-    return jsonify({'config': cfg.to_dict()}), 200
+        return jsonify({'config': None, 'default_system_prompt': DEFAULT_SYSTEM_PROMPT}), 200
+    return jsonify({'config': cfg.to_dict(), 'default_system_prompt': DEFAULT_SYSTEM_PROMPT}), 200
 
 
 @config_bp.route('/call', methods=['PUT'])
@@ -30,9 +30,14 @@ def upsert_call_config():
     data = request.get_json() or {}
 
     cfg = UserCallConfig.query.filter_by(user_id=user_id).first()
+    is_new = cfg is None
     if not cfg:
         cfg = UserCallConfig(user_id=user_id)
         db.session.add(cfg)
+
+    # seed default prompt for new configs if not explicitly provided
+    if is_new and 'system_prompt_base' not in data:
+        cfg.system_prompt_base = DEFAULT_SYSTEM_PROMPT
 
     # simple string fields
     for field in ['tone', 'default_language', 'fallback_language',
@@ -91,9 +96,9 @@ def get_voices():
 @jwt_required()
 def get_greeting_presets():
     presets = [
-        {'id': 'professional', 'text': 'Hello {lead_name}, this is {company}. Do you have a moment to speak?'},
-        {'id': 'casual', 'text': 'Hi {lead_name}! This is {company} calling. Got a quick minute?'},
-        {'id': 'follow_up', 'text': "Hi {lead_name}, I'm following up from {company}. Is this a good time?"},
+        {'id': 'professional', 'text': 'Hello {name}, this is {company}. Do you have a moment to speak?'},
+        {'id': 'casual', 'text': 'Hi {name}! This is {company} calling. Got a quick minute?'},
+        {'id': 'follow_up', 'text': "Hi {name}, I'm following up from {company}. Is this a good time?"},
     ]
     return jsonify({'presets': presets}), 200
 
