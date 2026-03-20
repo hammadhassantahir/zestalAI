@@ -50,6 +50,7 @@ def initiate_call():
     customer_number = data.get('customer_number')
     lead_context = data.get('lead_context')
     language = data.get('language')  # optional explicit language override e.g. "de-DE"
+    force = data.get('force', False)
 
     if not customer_number:
         return jsonify({'error': 'customer_number is required'}), 400
@@ -62,12 +63,13 @@ def initiate_call():
     from ..services.language_service import get_country_and_timezone, is_in_call_window, get_next_call_window
     _, country_code, tz_str = get_country_and_timezone(customer_number)
 
-    in_window = is_in_call_window(customer_number, config, tz_str=tz_str)
     schedule_at = None
-    if not in_window:
-        schedule_at = get_next_call_window(customer_number, config, tz_str=tz_str)
-        if not schedule_at:
-            return jsonify({'error': 'Outside call window and no valid window found in next 7 days'}), 400
+    if not force:
+        in_window = is_in_call_window(customer_number, config, tz_str=tz_str)
+        if not in_window:
+            schedule_at = get_next_call_window(customer_number, config, tz_str=tz_str)
+            if not schedule_at:
+                return jsonify({'error': 'Outside call window and no valid window found in next 7 days'}), 400
 
     # Build overrides from user config
     from ..services.call_override_builder import build_overrides
@@ -143,6 +145,47 @@ def get_call(call_id):
     if not call:
         return jsonify({'error': 'Call not found'}), 404
     return jsonify({'call': call.to_dict()}), 200
+
+
+@calls_bp.route('/<int:call_id>/force', methods=['POST'])
+@jwt_required()
+def force_call(call_id):
+    user_id = get_jwt_identity()
+    call = CallLog.query.filter_by(id=call_id, user_id=user_id).first()
+    if not call:
+        return jsonify({'error': 'Call not found'}), 404
+    if call.status != CallLog.STATUS_SCHEDULED:
+        return jsonify({'error': f'Call is not scheduled (status: {call.status})'}), 400
+
+    config, phone, shared_assistant_id, err = _get_call_prereqs(user_id)
+    if err:
+        return jsonify({'error': err}), 400
+
+    from ..services.call_override_builder import build_overrides
+    from ..services.language_service import get_country_and_timezone
+    lead_context = json.loads(call.lead_context) if call.lead_context else None
+    _, country_code, _ = get_country_and_timezone(call.customer_number)
+    overrides = build_overrides(config, call.customer_number, lead_context=lead_context, country_code=country_code)
+
+    dial_number = current_app.config.get('CALL_TEST_NUMBER') or call.customer_number
+
+    try:
+        vapi = VapiService()
+        vapi_result = vapi.create_call(
+            assistant_id=shared_assistant_id,
+            phone_number_id=phone.vapi_phone_id,
+            customer_number=dial_number,
+            overrides=overrides,
+        )
+        call.vapi_call_id = vapi_result.get('id')
+        call.status = CallLog.STATUS_QUEUED
+        call.scheduled_at = None
+        db.session.commit()
+        return jsonify({'success': True, 'call': call.to_dict()}), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Force call error: {str(e)}")
+        return jsonify({'error': str(e)}), 400
 
 
 # ─── Call Analytics ────────────────────────────────────────────────────────
