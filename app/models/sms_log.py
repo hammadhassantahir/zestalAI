@@ -21,3 +21,20 @@ class SmsLog(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = db.relationship('User', backref='sms_logs')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'to_number': self.to_number,
+            'from_number': self.from_number,
+            'body': self.body,
+            'language': self.language,
+            'twilio_sid': self.twilio_sid,
+            'status': self.status,
+            'error_code': self.error_code,
+            'error_message': self.error_message,
+            'is_valid_number': self.is_valid_number,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }

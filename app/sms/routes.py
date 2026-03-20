@@ -160,6 +160,27 @@ def send_bulk_sms():
     }), 201
 
 
+@sms_bp.route('/logs', methods=['GET'])
+@jwt_required()
+def list_sms_logs():
+    user_id = get_jwt_identity()
+    page = request.args.get('page', 1, type=int)
+    limit = min(request.args.get('limit', 20, type=int), 100)
+
+    from ..models.sms_log import SmsLog
+    query = SmsLog.query.filter_by(user_id=user_id).order_by(SmsLog.created_at.desc())
+    total = query.count()
+    logs = query.offset((page - 1) * limit).limit(limit).all()
+
+    return jsonify({
+        'success': True,
+        'logs': [log.to_dict() for log in logs],
+        'total': total,
+        'page': page,
+        'pages': (total + limit - 1) // limit,
+    }), 200
+
+
 @sms_bp.route('/<message_sid>', methods=['GET'])
 @jwt_required()
 def get_sms(message_sid):
