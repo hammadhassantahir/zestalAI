@@ -144,7 +144,14 @@ def get_call(call_id):
     call = CallLog.query.filter_by(id=call_id, user_id=user_id).first()
     if not call:
         return jsonify({'error': 'Call not found'}), 404
-    return jsonify({'call': call.to_dict()}), 200
+
+    data = call.to_dict()
+    analytics = CallAnalytics.query.filter_by(call_log_id=call_id).first()
+    data['analytics'] = analytics.to_dict() if analytics else None
+    result = CallResult.query.join(CallLog).filter(CallLog.id == call_id).first()
+    data['result'] = result.to_dict() if result else None
+
+    return jsonify({'call': data}), 200
 
 
 @calls_bp.route('/<int:call_id>/force', methods=['POST'])

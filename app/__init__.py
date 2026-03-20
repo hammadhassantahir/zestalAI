@@ -127,9 +127,14 @@ def create_app(config_class=Config):
     from .calls import calls_bp
     app.register_blueprint(calls_bp, url_prefix='/api/calls')
 
-    # Register Webhooks blueprint
+    # Register Webhooks blueprint at two prefixes:
+    # - /api/webhooks: standard prefix used in local dev and ngrok testing
+    # - /webhooks: nginx on prod strips the /api/ prefix before forwarding to Flask
+    #   (proxy_pass http://127.0.0.1:5000/api/ rewrites /api/webhooks/* → /webhooks/*)
+    #   so Vapi/Twilio callbacks hit /webhooks/* on the Flask side
     from .webhooks import webhooks_bp
     app.register_blueprint(webhooks_bp, url_prefix='/api/webhooks')
+    app.register_blueprint(webhooks_bp, url_prefix='/webhooks', name='webhooks_direct')
 
     # Register Analytics blueprint
     from .analytics import analytics_bp
