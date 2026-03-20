@@ -17,6 +17,8 @@ def send_sms():
 
     to = data.get('to')
     body = data.get('body')
+    language_override = data.get('language')  # optional explicit language e.g. "de-DE"
+    tags = data.get('tags')  # optional list of GHL tags e.g. ["lang_de"]
 
     if not to or not body:
         return jsonify({'error': 'to and body are required'}), 400
@@ -25,10 +27,17 @@ def send_sms():
     if not phone:
         return jsonify({'error': 'No active phone number assigned'}), 400
 
-    # resolve language from recipient number
-    from ..services.language_service import get_country_from_number, LANGUAGE_MAP
-    _, region_code = get_country_from_number(to)
-    language = LANGUAGE_MAP.get(region_code, {}).get('lang', 'en-US') if region_code else 'en-US'
+    # resolve language: explicit > lang_* tag > phone number country
+    from ..services.language_service import get_country_from_number, LANGUAGE_MAP, extract_language_from_tags
+    if language_override:
+        language = language_override
+    elif tags:
+        language = extract_language_from_tags(tags) or (
+            LANGUAGE_MAP.get(get_country_from_number(to)[1], {}).get('lang', 'en-US')
+        )
+    else:
+        _, region_code = get_country_from_number(to)
+        language = LANGUAGE_MAP.get(region_code, {}).get('lang', 'en-US') if region_code else 'en-US'
 
     # generate translated content via Vapi
     try:
@@ -95,20 +104,37 @@ def send_bulk_sms():
     if not phone:
         return jsonify({'error': 'No active phone number assigned'}), 400
 
-    from ..services.language_service import get_country_from_number, LANGUAGE_MAP
+    from ..services.language_service import get_country_from_number, LANGUAGE_MAP, extract_language_from_tags
     from ..services.vapi_sms_service import VapiSmsService
     from ..models.sms_log import SmsLog
     from ..extensions import db
 
+    # recipients can be plain strings or objects: { "to": "+123", "language": "de-DE", "tags": [...] }
     test_number = current_app.config.get('SMS_TEST_NUMBER')
     status_callback = current_app.config['BASE_URL'] + '/api/webhooks/sms/status'
     twilio = TwilioService()
     vapi_sms = VapiSmsService()
     results = []
 
-    for to in recipients:
-        _, region_code = get_country_from_number(to)
-        language = LANGUAGE_MAP.get(region_code, {}).get('lang', 'en-US') if region_code else 'en-US'
+    for item in recipients:
+        if isinstance(item, dict):
+            to = item.get('to')
+            lang_override = item.get('language')
+            item_tags = item.get('tags')
+        else:
+            to = item
+            lang_override = None
+            item_tags = None
+
+        if lang_override:
+            language = lang_override
+        elif item_tags:
+            language = extract_language_from_tags(item_tags) or (
+                LANGUAGE_MAP.get(get_country_from_number(to)[1], {}).get('lang', 'en-US')
+            )
+        else:
+            _, region_code = get_country_from_number(to)
+            language = LANGUAGE_MAP.get(region_code, {}).get('lang', 'en-US') if region_code else 'en-US'
 
         log = SmsLog(
             user_id=user_id,

@@ -105,6 +105,34 @@ def resolve_language(customer_number, user_config, country_code=None):
     return 'en-US'
 
 
+def extract_language_from_tags(tags):
+    """Extract language code from a list of GHL tags like ['lang_fr', 'lang_de'].
+    Returns a BCP-47 code (e.g. 'fr-FR') or None if no lang tag found."""
+    tag_to_lang = {
+        'lang_en': 'en-US',
+        'lang_fr': 'fr-FR',
+        'lang_de': 'de-DE',
+        'lang_es': 'es-ES',
+        'lang_it': 'it-IT',
+        'lang_nl': 'nl-NL',
+        'lang_pt': 'pt-PT',
+        'lang_sv': 'sv-SE',
+        'lang_no': 'nb-NO',
+        'lang_da': 'da-DK',
+        'lang_ja': 'ja-JP',
+        'lang_ko': 'ko-KR',
+        'lang_hi': 'hi-IN',
+        'lang_ur': 'ur-PK',
+    }
+    if not tags:
+        return None
+    for tag in tags:
+        lang = tag_to_lang.get(tag.lower().strip())
+        if lang:
+            return lang
+    return None
+
+
 def resolve_voice(customer_number, user_config, country_code=None):
     if country_code is None:
         _, country_code = get_country_from_number(customer_number)

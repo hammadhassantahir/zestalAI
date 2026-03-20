@@ -49,6 +49,7 @@ def initiate_call():
 
     customer_number = data.get('customer_number')
     lead_context = data.get('lead_context')
+    language = data.get('language')  # optional explicit language override e.g. "de-DE"
 
     if not customer_number:
         return jsonify({'error': 'customer_number is required'}), 400
@@ -70,7 +71,7 @@ def initiate_call():
 
     # Build overrides from user config
     from ..services.call_override_builder import build_overrides
-    overrides = build_overrides(config, customer_number, lead_context=lead_context, country_code=country_code)
+    overrides = build_overrides(config, customer_number, lead_context=lead_context, country_code=country_code, language=language)
 
     # test number override (language/tz resolved from original customer_number)
     dial_number = current_app.config.get('CALL_TEST_NUMBER') or customer_number

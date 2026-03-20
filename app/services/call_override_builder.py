@@ -1,15 +1,22 @@
 import json
-from .language_service import resolve_language, resolve_voice, get_country_from_number
+from .language_service import resolve_language, resolve_voice, get_country_from_number, extract_language_from_tags
 from .call_script_templates import get_template
 
 
-def build_overrides(user_config, customer_number, lead_context=None, country_code=None):
+def build_overrides(user_config, customer_number, lead_context=None, country_code=None, language=None):
     overrides = {}
 
     if country_code is None:
         _, country_code = get_country_from_number(customer_number)
 
-    lang = resolve_language(customer_number, user_config, country_code=country_code)
+    # priority: explicit param > lang_* tag > phone-number waterfall
+    if language:
+        lang = language
+    elif lead_context and isinstance(lead_context, dict):
+        lang = extract_language_from_tags(lead_context.get('tags')) or \
+               resolve_language(customer_number, user_config, country_code=country_code)
+    else:
+        lang = resolve_language(customer_number, user_config, country_code=country_code)
 
     voice_provider, voice_id = resolve_voice(customer_number, user_config, country_code=country_code)
     overrides['voice'] = {
