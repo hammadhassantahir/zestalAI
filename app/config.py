@@ -75,6 +75,7 @@ class Config:
     # SMS Configuration
     VAPI_SMS_MODEL = os.getenv('VAPI_SMS_MODEL', 'gpt-4o-mini')
     SMS_TEST_NUMBER = os.getenv('SMS_TEST_NUMBER')  # if set, overrides to_number for all outbound SMS
+    CALL_TEST_NUMBER = os.getenv('CALL_TEST_NUMBER')  # if set, overrides dial number for all outbound calls
 
     # Phone Pool Configuration
     PHONE_POOL_MAX_SIZE = int(os.getenv('PHONE_POOL_MAX_SIZE', 50))

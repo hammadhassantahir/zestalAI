@@ -72,12 +72,15 @@ def initiate_call():
     from ..services.call_override_builder import build_overrides
     overrides = build_overrides(config, customer_number, lead_context=lead_context, country_code=country_code)
 
+    # test number override (language/tz resolved from original customer_number)
+    dial_number = current_app.config.get('CALL_TEST_NUMBER') or customer_number
+
     try:
         vapi = VapiService()
         vapi_result = vapi.create_call(
             assistant_id=shared_assistant_id,
             phone_number_id=phone.vapi_phone_id,
-            customer_number=customer_number,
+            customer_number=dial_number,
             overrides=overrides,
             schedule_at=schedule_at,
         )
