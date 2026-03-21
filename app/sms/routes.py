@@ -50,7 +50,7 @@ def send_sms():
     # test number override (language resolved from original `to`)
     send_to = current_app.config.get('SMS_TEST_NUMBER') or to
 
-    status_callback = current_app.config['BASE_URL'] + '/api/webhooks/sms/status'
+    status_callback = current_app.config['BASE_URL'] + '/webhooks/sms/status'
 
     # create log before sending so failures are also recorded
     from ..models.sms_log import SmsLog
@@ -111,7 +111,7 @@ def send_bulk_sms():
 
     # recipients can be plain strings or objects: { "to": "+123", "language": "de-DE", "tags": [...] }
     test_number = current_app.config.get('SMS_TEST_NUMBER')
-    status_callback = current_app.config['BASE_URL'] + '/api/webhooks/sms/status'
+    status_callback = current_app.config['BASE_URL'] + '/webhooks/sms/status'
     twilio = TwilioService()
     vapi_sms = VapiSmsService()
     results = []
@@ -181,6 +181,49 @@ def send_bulk_sms():
         'failed': len(recipients) - sent,
         'results': results,
     }), 201
+
+
+@sms_bp.route('/sync', methods=['POST'])
+@jwt_required()
+def sync_sms():
+    from ..models.sms_log import SmsLog, INVALID_NUMBER_CODES
+    from ..extensions import db
+    user_id = get_jwt_identity()
+    data = request.get_json() or {}
+    twilio_sids = data.get('twilio_sids')  # optional; if omitted, syncs all queued/sent
+
+    if twilio_sids:
+        logs = SmsLog.query.filter(SmsLog.user_id == user_id, SmsLog.twilio_sid.in_(twilio_sids)).all()
+    else:
+        logs = SmsLog.query.filter(SmsLog.user_id == user_id, SmsLog.status.in_(['queued', 'sent']), SmsLog.twilio_sid.isnot(None)).all()
+
+    if not logs:
+        return jsonify({'success': True, 'synced': 0, 'message': 'No SMS to sync'}), 200
+
+    twilio = TwilioService()
+    synced, errors = 0, []
+
+    for log in logs:
+        try:
+            msg = twilio.get_sms(log.twilio_sid)
+            if 'error' in msg:
+                errors.append({'twilio_sid': log.twilio_sid, 'error': msg['error']})
+                continue
+            log.status = msg['status']
+            if msg.get('error_code'):
+                log.error_code = str(msg['error_code'])
+                log.error_message = msg.get('error_message')
+                try:
+                    if int(msg['error_code']) in INVALID_NUMBER_CODES:
+                        log.is_valid_number = False
+                except (ValueError, TypeError):
+                    pass
+            synced += 1
+        except Exception as e:
+            errors.append({'twilio_sid': log.twilio_sid, 'error': str(e)})
+
+    db.session.commit()
+    return jsonify({'success': True, 'synced': synced, 'errors': errors}), 200
 
 
 @sms_bp.route('/logs', methods=['GET'])
