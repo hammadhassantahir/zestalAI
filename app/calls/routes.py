@@ -160,7 +160,7 @@ def sync_calls():
     """Pull latest call data from Vapi and update local CallLog records."""
     user_id = get_jwt_identity()
     data = request.get_json() or {}
-    vapi_call_ids = data.get('vapi_call_ids')  # optional list; if omitted, syncs active + ended-but-incomplete
+    vapi_call_ids = data.get('vapi_call_ids')  # optional list; if omitted, syncs all calls
 
     if vapi_call_ids:
         calls = CallLog.query.filter(
@@ -168,14 +168,9 @@ def sync_calls():
             CallLog.vapi_call_id.in_(vapi_call_ids),
         ).all()
     else:
-        from sqlalchemy import or_
         calls = CallLog.query.filter(
             CallLog.user_id == user_id,
             CallLog.vapi_call_id.isnot(None),
-            or_(
-                CallLog.status.notin_([CallLog.STATUS_ENDED, CallLog.STATUS_FAILED]),
-                CallLog.transcript.is_(None),  # ended but missing data
-            ),
         ).all()
 
     if not calls:
