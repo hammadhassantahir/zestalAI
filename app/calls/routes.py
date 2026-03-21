@@ -154,6 +154,67 @@ def get_call(call_id):
     return jsonify({'call': data}), 200
 
 
+@calls_bp.route('/sync', methods=['POST'])
+@jwt_required()
+def sync_calls():
+    """Pull latest call data from Vapi and update local CallLog records."""
+    user_id = get_jwt_identity()
+    data = request.get_json() or {}
+    vapi_call_ids = data.get('vapi_call_ids')  # optional list; if omitted, syncs all non-ended
+
+    if vapi_call_ids:
+        calls = CallLog.query.filter(
+            CallLog.user_id == user_id,
+            CallLog.vapi_call_id.in_(vapi_call_ids),
+        ).all()
+    else:
+        calls = CallLog.query.filter(
+            CallLog.user_id == user_id,
+            CallLog.vapi_call_id.isnot(None),
+            CallLog.status.notin_([CallLog.STATUS_ENDED, CallLog.STATUS_FAILED]),
+        ).all()
+
+    if not calls:
+        return jsonify({'success': True, 'synced': 0, 'message': 'No calls to sync'}), 200
+
+    vapi = VapiService()
+    synced, errors = 0, []
+
+    for call in calls:
+        try:
+            vapi_data = vapi.get_call(call.vapi_call_id)
+            call.status = vapi_data.get('status', call.status)
+            call.end_reason = vapi_data.get('endedReason') or call.end_reason
+            call.transcript = vapi_data.get('transcript') or call.transcript
+            call.summary = vapi_data.get('summary') or call.summary
+            call.recording_url = vapi_data.get('recordingUrl') or call.recording_url
+            call.cost = vapi_data.get('cost') or call.cost
+
+            duration = vapi_data.get('durationSeconds')
+            if duration:
+                call.duration_seconds = duration
+
+            from datetime import datetime
+            for attr, key in [('started_at', 'startedAt'), ('ended_at', 'endedAt')]:
+                val = vapi_data.get(key)
+                if val:
+                    try:
+                        setattr(call, attr, datetime.fromisoformat(val.replace('Z', '+00:00')))
+                    except (ValueError, AttributeError):
+                        pass
+
+            analysis = vapi_data.get('analysis')
+            if analysis:
+                call.structured_data = json.dumps(analysis)
+
+            synced += 1
+        except Exception as e:
+            errors.append({'vapi_call_id': call.vapi_call_id, 'error': str(e)})
+
+    db.session.commit()
+    return jsonify({'success': True, 'synced': synced, 'errors': errors}), 200
+
+
 @calls_bp.route('/<int:call_id>/force', methods=['POST'])
 @jwt_required()
 def force_call(call_id):

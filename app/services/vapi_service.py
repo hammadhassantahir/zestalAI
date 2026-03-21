@@ -99,3 +99,6 @@ class VapiService:
 
     def get_call(self, vapi_call_id):
         return self._request("GET", f"/call/{vapi_call_id}")
+
+    def list_calls(self, limit=100):
+        return self._request("GET", f"/call?limit={limit}")
